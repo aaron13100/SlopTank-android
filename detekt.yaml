@@ -24,7 +24,9 @@ naming:
 style:
   # Allow TODO and FIXME comments
   ForbiddenComment:
-    values: [ 'STOPSHIP:' ]
+    comments:
+      - reason: 'Forbidden STOPSHIP marker before shipping.'
+        value: 'STOPSHIP:'
   ReturnCount:
     max: 6
   MaxLineLength:
