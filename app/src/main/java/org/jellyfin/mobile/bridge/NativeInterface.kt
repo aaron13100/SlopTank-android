@@ -8,13 +8,10 @@ import android.webkit.JavascriptInterface
 import androidx.core.content.ContextCompat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import kotlinx.serialization.json.put
 import org.jellyfin.mobile.BuildConfig
 import org.jellyfin.mobile.events.ActivityEvent
 import org.jellyfin.mobile.events.ActivityEventHandler
@@ -34,14 +31,12 @@ import org.jellyfin.mobile.utils.Constants.EXTRA_TITLE
 import org.jellyfin.mobile.webapp.RemotePlayerService
 import org.jellyfin.mobile.webapp.RemoteVolumeProvider
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
-import org.jellyfin.sdk.model.serializer.toUUID
 import org.json.JSONArray
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.component.inject
+import org.koin.core.error.InstanceCreationException
 import timber.log.Timber
-import java.util.UUID
 
 @Suppress("unused")
 class NativeInterface(private val context: Context) : KoinComponent {
@@ -52,21 +47,9 @@ class NativeInterface(private val context: Context) : KoinComponent {
     @SuppressLint("HardwareIds")
     @JavascriptInterface
     fun getDeviceInformation(): String? = try {
-        val apiClient: ApiClient = get()
-        val deviceInfo = apiClient.deviceInfo
-        val clientInfo = apiClient.clientInfo
-
-        buildJsonObject {
-            put("deviceId", deviceInfo.id.toString())
-            // normalize the name by removing special characters
-            // and making sure it's at least 1 character long
-            // otherwise the webui will fail to send it to the server
-            val name = AuthorizationHeaderBuilder.encodeParameterValue(deviceInfo.name).padStart(1)
-            put("deviceName", name)
-            put("appName", clientInfo.name)
-            put("appVersion", clientInfo.version)
-        }.toString()
-    } catch (e: Exception) {
+        getKoin().getOrNull<ApiClient>()?.let(::buildDeviceInformationJson)
+    } catch (e: InstanceCreationException) {
+        Timber.e(e, "getDeviceInformation: unable to create the API client")
         null
     }
 
@@ -78,19 +61,19 @@ class NativeInterface(private val context: Context) : KoinComponent {
 
     @JavascriptInterface
     fun enableFullscreen(): Boolean {
-        emitEvent(ActivityEvent.ChangeFullscreen(true))
+        activityEventHandler.emit(ActivityEvent.ChangeFullscreen(true))
         return true
     }
 
     @JavascriptInterface
     fun disableFullscreen(): Boolean {
-        emitEvent(ActivityEvent.ChangeFullscreen(false))
+        activityEventHandler.emit(ActivityEvent.ChangeFullscreen(false))
         return true
     }
 
     @JavascriptInterface
     fun openUrl(uri: String): Boolean {
-        emitEvent(ActivityEvent.OpenUrl(uri))
+        activityEventHandler.emit(ActivityEvent.OpenUrl(uri))
         return true
     }
 
@@ -98,8 +81,8 @@ class NativeInterface(private val context: Context) : KoinComponent {
     fun updateMediaSession(args: String): Boolean {
         val options = try {
             Json.parseToJsonElement(args).jsonObject
-        } catch (e: Exception) {
-            Timber.e("updateMediaSession: %s", e.message)
+        } catch (e: IllegalArgumentException) {
+            Timber.e(e, "updateMediaSession: %s", e.message)
             return false
         }
         val intent = Intent(context, RemotePlayerService::class.java).apply {
@@ -144,55 +127,19 @@ class NativeInterface(private val context: Context) : KoinComponent {
 
     @JavascriptInterface
     fun downloadFiles(args: String): Boolean {
-        try {
-            val files = Json.parseToJsonElement(args).jsonArray
-            val itemIds = mutableSetOf<UUID>()
-
-            files.forEach { element ->
-                val file = element.jsonObject
-                val itemId = file["itemId"]?.jsonPrimitive?.contentOrNull?.toUUID()
-
-                if (itemId != null) {
-                    itemIds.add(itemId)
-                }
-            }
-
-            emitEvent(ActivityEvent.DownloadItems(itemIds))
-        } catch (e: Exception) {
-            Timber.e("Download failed: %s", e.message)
+        val itemIds = try {
+            parseDownloadItemIds(args)
+        } catch (e: IllegalArgumentException) {
+            Timber.e(e, "Download failed: %s", e.message)
             return false
         }
 
+        activityEventHandler.emit(ActivityEvent.DownloadItems(itemIds))
         return true
     }
 
     @JavascriptInterface
-    fun openDownloadManager() {
-        emitEvent(ActivityEvent.OpenDownloads)
-    }
-
-    @JavascriptInterface
-    fun openClientSettings() {
-        emitEvent(ActivityEvent.OpenSettings)
-    }
-
-    @JavascriptInterface
-    fun openServerSelection() {
-        emitEvent(ActivityEvent.SelectServer)
-    }
-
-    @JavascriptInterface
-    fun exitApp() {
-        emitEvent(ActivityEvent.ExitApp)
-    }
-
-    @JavascriptInterface
     fun execCast(action: String, args: String) {
-        emitEvent(ActivityEvent.CastMessage(action, JSONArray(args)))
-    }
-
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun emitEvent(event: ActivityEvent) {
-        activityEventHandler.emit(event)
+        activityEventHandler.emit(ActivityEvent.CastMessage(action, JSONArray(args)))
     }
 }

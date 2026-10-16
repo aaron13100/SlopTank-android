@@ -68,15 +68,15 @@ window.NativeShell = {
     },
 
     openDownloadManager() {
-        window.NativeInterface.openDownloadManager();
+        window.NativeNavigation.openDownloadManager();
     },
 
     openClientSettings() {
-        window.NativeInterface.openClientSettings();
+        window.NativeNavigation.openClientSettings();
     },
 
     selectServer() {
-        window.NativeInterface.openServerSelection();
+        window.NativeNavigation.openServerSelection();
     },
 
     getPlugins() {
@@ -129,6 +129,6 @@ window.NativeShell.AppHost = {
         return appVersion;
     },
     exit() {
-        window.NativeInterface.exitApp();
+        window.NativeNavigation.exitApp();
     }
 };
