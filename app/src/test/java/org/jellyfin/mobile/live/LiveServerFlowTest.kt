@@ -102,6 +102,9 @@ class LiveServerFlowTest {
         baseline.shouldBeInstanceOf<BaselineResult.Ok>()
         val before = baseline.progress
         println("baseline revision=${before.revision} playCount=${before.playCount}")
+        // Kept progress re-attaches by this identity, so it must be the id the progress state carries.
+        api.serverIdentity() shouldBe baseline.serverIdentity
+        println("server identity from /System/Info/Public matches the progress state: ${baseline.serverIdentity}")
 
         val completion = FrozenOperation(UUID.randomUUID(), 1, before.revision, 0, true, 1, null)
         val applied = api.apply(itemId, baseline.serverIdentity, completion)
