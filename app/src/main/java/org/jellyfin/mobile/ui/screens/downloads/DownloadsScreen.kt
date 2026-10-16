@@ -1,8 +1,6 @@
 package org.jellyfin.mobile.ui.screens.downloads
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.DropdownMenu
@@ -40,11 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jellyfin.mobile.R
-import org.jellyfin.mobile.data.entity.DownloadEntity
-import org.jellyfin.mobile.data.entity.DownloadFiles
+import org.jellyfin.mobile.downloads.DownloadRow
 import org.jellyfin.mobile.downloads.DownloadsViewModel
 
 @Composable
@@ -52,28 +47,33 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
 ) {
-    val downloads by viewModel.downloads.collectAsState()
-    val storageLocation by viewModel.storageLocation.collectAsState()
-    val storageLocationAccessible by viewModel.storageLocationAccessible.collectAsState()
+    val rows by viewModel.rows.collectAsState()
+    val storageSummary by viewModel.storageSummary.collectAsState()
     val selection = remember { mutableStateSetOf<Long>() }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showRemoveAllConfirm by remember { mutableStateOf(false) }
 
-    val selectionMode = selection.isNotEmpty()
-
-    val storageLocationPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) viewModel.changeStorageLocation(uri)
-    }
-
-    BackHandler(enabled = selectionMode) {
+    BackHandler(enabled = selection.isNotEmpty()) {
         selection.clear()
     }
 
     if (showDeleteConfirm) {
         RemoveSelectedDownloadsDialog(
-            downloads = downloads,
+            rows = rows,
             selection = selection,
-            onRemove = { download, deleteFiles -> viewModel.removeDownload(download, deleteFiles = deleteFiles) },
+            onRemove = { viewModel.remove(it) },
             onDismiss = { showDeleteConfirm = false },
+        )
+    }
+
+    if (showRemoveAllConfirm) {
+        DownloadRemoveAllDialog(
+            onConfirm = {
+                viewModel.removeAll()
+                selection.clear()
+                showRemoveAllConfirm = false
+            },
+            onDismiss = { showRemoveAllConfirm = false },
         )
     }
 
@@ -83,10 +83,11 @@ fun DownloadsScreen(
             .systemBarsPadding(),
         topBar = {
             DownloadsTopBar(
-                downloads = downloads,
+                rows = rows,
                 selection = selection,
                 onBackPressed = onBackPressed,
                 onDeleteClick = { showDeleteConfirm = true },
+                onRemoveAllClick = { showRemoveAllConfirm = true },
             )
         },
         content = { innerPadding ->
@@ -95,20 +96,12 @@ fun DownloadsScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                StorageLocationWarning(
-                    storageLocationSet = storageLocation != null,
-                    storageLocationAccessible = storageLocationAccessible,
-                    onFix = { storageLocationPicker.launch(null) },
-                )
+                storageSummary?.let { summary -> StorageSummaryLine(summary = summary) }
 
                 DownloadsListOrEmpty(
-                    downloads = downloads,
+                    rows = rows,
                     selection = selection,
-                    actions = DownloadListActions(
-                        onOpen = { viewModel.openDownload(it) },
-                        onDownload = { viewModel.download(it) },
-                        onToggleSelection = { download -> selection.toggle(download.id) },
-                    ),
+                    actions = rememberListActions(viewModel, selection),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -117,23 +110,32 @@ fun DownloadsScreen(
 }
 
 @Composable
-private fun RemoveSelectedDownloadsDialog(
-    downloads: List<DownloadFiles>,
+private fun rememberListActions(
+    viewModel: DownloadsViewModel,
     selection: MutableSet<Long>,
-    onRemove: (download: DownloadEntity, deleteFiles: Boolean) -> Unit,
+): DownloadListActions = remember(viewModel, selection) {
+    DownloadListActions(
+        onOpen = { viewModel.open(it) },
+        onPause = { viewModel.pause(it) },
+        onResume = { viewModel.resume(it) },
+        onToggleSelection = { row -> selection.toggle(row.download.id) },
+    )
+}
+
+@Composable
+private fun RemoveSelectedDownloadsDialog(
+    rows: List<DownloadRow>,
+    selection: MutableSet<Long>,
+    onRemove: (List<DownloadRow>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val downloadsToRemove = remember(selection, downloads) {
-        downloads
-            .map { it.download }
-            .filter { it.id in selection }
+    val rowsToRemove = remember(selection, rows) {
+        rows.filter { it.download.id in selection }
     }
     DownloadRemoveDialog(
-        downloads = downloadsToRemove,
-        onConfirm = { keepLocalFiles ->
-            downloadsToRemove.forEach { download ->
-                onRemove(download, !keepLocalFiles)
-            }
+        downloads = rowsToRemove.map { it.download },
+        onConfirm = {
+            onRemove(rowsToRemove)
             selection.clear()
             onDismiss()
         },
@@ -150,36 +152,17 @@ private fun MutableSet<Long>.toggle(id: Long) {
 }
 
 @Composable
-private fun StorageLocationWarning(
-    storageLocationSet: Boolean,
-    storageLocationAccessible: Boolean,
-    onFix: () -> Unit,
-) {
-    if (!storageLocationSet) {
-        StorageLocationNotSetCard(
-            onFix = onFix,
-            modifier = Modifier.padding(16.dp),
-        )
-    } else if (!storageLocationAccessible) {
-        StorageLocationInaccessibleCard(
-            onFix = onFix,
-            modifier = Modifier.padding(16.dp),
-        )
-    }
-}
-
-@Composable
 private fun DownloadsListOrEmpty(
-    downloads: List<DownloadFiles>,
+    rows: List<DownloadRow>,
     selection: Set<Long>,
     actions: DownloadListActions,
     modifier: Modifier = Modifier,
 ) {
-    if (downloads.isEmpty()) {
+    if (rows.isEmpty()) {
         DownloadsEmpty(modifier = modifier)
     } else {
         DownloadsList(
-            downloads = downloads,
+            rows = rows,
             actions = actions,
             selection = selection,
             modifier = modifier,
@@ -189,10 +172,11 @@ private fun DownloadsListOrEmpty(
 
 @Composable
 private fun DownloadsTopBar(
-    downloads: List<DownloadFiles>,
+    rows: List<DownloadRow>,
     selection: MutableSet<Long>,
     onBackPressed: () -> Unit,
     onDeleteClick: () -> Unit,
+    onRemoveAllClick: () -> Unit,
 ) {
     val selectionMode = selection.isNotEmpty()
 
@@ -211,10 +195,11 @@ private fun DownloadsTopBar(
             )
         },
         actions = {
-            DownloadsSelectionActions(
-                downloads = downloads,
+            DownloadsActions(
+                rows = rows,
                 selection = selection,
                 onDeleteClick = onDeleteClick,
+                onRemoveAllClick = onRemoveAllClick,
             )
         },
         backgroundColor = Color.Transparent,
@@ -280,10 +265,11 @@ private fun DownloadsNavigationIcon(
 }
 
 @Composable
-private fun DownloadsSelectionActions(
-    downloads: List<DownloadFiles>,
+private fun DownloadsActions(
+    rows: List<DownloadRow>,
     selection: MutableSet<Long>,
     onDeleteClick: () -> Unit,
+    onRemoveAllClick: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -293,48 +279,48 @@ private fun DownloadsSelectionActions(
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
-            Row {
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = null,
-                    )
-                }
-
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = null,
-                        )
-                    }
-                    DownloadsSelectionMenu(
-                        expanded = showMenu,
-                        downloads = downloads,
-                        selection = selection,
-                        onDismiss = { showMenu = false },
-                    )
-                }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = null,
+                )
             }
+        }
+
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = null,
+                )
+            }
+            DownloadsMenu(
+                expanded = showMenu,
+                rows = rows,
+                selection = selection,
+                onRemoveAllClick = onRemoveAllClick,
+                onDismiss = { showMenu = false },
+            )
         }
     }
 }
 
 @Composable
-private fun DownloadsSelectionMenu(
+private fun DownloadsMenu(
     expanded: Boolean,
-    downloads: List<DownloadFiles>,
+    rows: List<DownloadRow>,
     selection: MutableSet<Long>,
+    onRemoveAllClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
     ) {
-        if (selection.size < downloads.size) {
+        if (rows.isNotEmpty() && selection.size < rows.size) {
             DropdownMenuItem(
                 onClick = {
-                    selection.addAll(downloads.map { it.download.id })
+                    selection.addAll(rows.map { it.download.id })
                     onDismiss()
                 },
             ) {
@@ -351,6 +337,15 @@ private fun DownloadsSelectionMenu(
             ) {
                 Text(text = stringResource(R.string.deselect_all))
             }
+        }
+
+        DropdownMenuItem(
+            onClick = {
+                onRemoveAllClick()
+                onDismiss()
+            },
+        ) {
+            Text(text = stringResource(R.string.downloads_remove_all))
         }
     }
 }

@@ -158,6 +158,7 @@
     <string name="special_episode">Special</string>
     <string name="downloading_title">Downloading %1$s</string>
     <string name="download_cancel">Cancel</string>
+    <string name="download_pause">Pause</string>
     <string name="download_completed">Download completed</string>
     <string name="download_progress">%1$d%%</string>
     <string name="download_remove_title_single">Remove download</string>
@@ -168,6 +169,25 @@
         <item quantity="other">Do you want to remove these %1$d downloads?</item>
     </plurals>
     <string name="download_incomplete">Download incomplete</string>
+    <string name="download_remove_device_only">This deletes only the offline copy on this device. Nothing is removed from the server.</string>
+    <string name="downloads_remove_all">Remove all downloads</string>
+    <string name="downloads_remove_all_description">Remove all downloads of this account? This deletes only the offline copies on this device. Nothing is removed from the server.</string>
+    <string name="downloads_storage_summary">Offline storage: %1$s used, %2$s free</string>
+    <string name="download_status_queued">Queued</string>
+    <string name="download_status_downloading">Downloading %1$d%% (%2$s of %3$s)</string>
+    <string name="download_status_downloading_unknown">Downloading (%1$s)</string>
+    <string name="download_status_paused">Paused %1$d%%</string>
+    <string name="download_status_paused_unknown">Paused</string>
+    <string name="download_status_downloaded">Downloaded (%1$s)</string>
+    <string name="download_status_failed">Failed: %1$s</string>
+    <string name="download_status_not_portable">Not available offline</string>
+    <string name="download_not_portable_description">This format cannot be saved for offline playback.</string>
+    <string name="download_error_network">network error</string>
+    <string name="download_error_insufficient_storage">not enough storage space</string>
+    <string name="download_error_validation_failed">the downloaded file is damaged</string>
+    <string name="download_error_server_item_gone">the item is no longer on the server</string>
+    <string name="download_error_auth_expired">sign in again to continue</string>
+    <string name="download_error_unknown">unknown error</string>
     <string name="download_settings_dialog_title">Choose download location</string>
     <string name="download_settings_dialog_message">Please choose where downloaded media should be saved. Downloads use WiFi only by default.</string>
     <string name="select_folder">Select folder</string>

@@ -1,18 +1,12 @@
 package org.jellyfin.mobile.ui.screens.downloads
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.AlertDialog
-import androidx.compose.material.Checkbox
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -24,11 +18,10 @@ import org.jellyfin.mobile.data.entity.DownloadEntity
 @Composable
 fun DownloadRemoveDialog(
     downloads: List<DownloadEntity>,
-    onConfirm: (Boolean) -> Unit,
+    onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    var keepLocalFiles by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -55,25 +48,38 @@ fun DownloadRemoveDialog(
                         downloads.size,
                         downloads.size,
                         name,
-                    )
+                    ),
                 )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    text = stringResource(R.string.download_remove_device_only),
                     modifier = Modifier.padding(top = 8.dp),
-                ) {
-                    Checkbox(
-                        checked = keepLocalFiles,
-                        onCheckedChange = { keepLocalFiles = it },
-                    )
-                    Text(text = stringResource(R.string.download_remove_keep_local))
-                }
+                )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onConfirm(keepLocalFiles) },
-            ) {
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(R.string.yes))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.download_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+fun DownloadRemoveAllDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.downloads_remove_all)) },
+        text = { Text(text = stringResource(R.string.downloads_remove_all_description)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
                 Text(text = stringResource(R.string.yes))
             }
         },
