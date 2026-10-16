@@ -63,13 +63,16 @@ sealed class JellyfinMediaSource(
                 }
                 MediaStreamType.AUDIO -> {
                     audio += mediaStream
-                    if (mediaStream.index == (playbackDetails?.audioStreamIndex ?: sourceInfo.defaultAudioStreamIndex)) {
+                    val requestedAudioIndex = playbackDetails?.audioStreamIndex ?: sourceInfo.defaultAudioStreamIndex
+                    if (mediaStream.index == requestedAudioIndex) {
                         selectedAudioStream = mediaStream
                     }
                 }
                 MediaStreamType.SUBTITLE -> {
                     subtitles += mediaStream
-                    if (mediaStream.index == (playbackDetails?.subtitleStreamIndex ?: sourceInfo.defaultSubtitleStreamIndex)) {
+                    val requestedSubtitleIndex =
+                        playbackDetails?.subtitleStreamIndex ?: sourceInfo.defaultSubtitleStreamIndex
+                    if (mediaStream.index == requestedSubtitleIndex) {
                         selectedSubtitleStream = mediaStream
                     }
 
@@ -170,10 +173,11 @@ sealed class JellyfinMediaSource(
                     it.name
                 }
 
+                val hasEpisodeNumbers = it.indexNumber != null && it.parentIndexNumber != null
                 val extraInfo = when (it.type) {
                     BaseItemKind.TV_CHANNEL if !it.channelNumber.isNullOrEmpty() -> it.channelNumber
                     BaseItemKind.EPISODE if it.parentIndexNumber == 0 -> context.getString(R.string.special_episode)
-                    in arrayOf(BaseItemKind.EPISODE, BaseItemKind.RECORDING) if it.indexNumber != null && it.parentIndexNumber != null ->
+                    in arrayOf(BaseItemKind.EPISODE, BaseItemKind.RECORDING) if hasEpisodeNumbers ->
                         "S${it.parentIndexNumber}:E${it.indexNumber}${it.indexNumberEnd?.let { n -> "-$n" } ?: ""}"
                     else -> ""
                 }

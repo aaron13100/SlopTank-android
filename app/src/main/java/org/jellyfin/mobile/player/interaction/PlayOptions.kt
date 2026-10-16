@@ -29,7 +29,9 @@ data class PlayOptions(
         fun fromJson(json: String): PlayOptions? = try {
             val jsonObject = Json.parseToJsonElement(json).jsonObject
             PlayOptions(
-                ids = jsonObject["ids"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull?.toUUIDOrNull() } ?: emptyList(),
+                ids = jsonObject["ids"]?.jsonArray?.mapNotNull { element ->
+                    element.jsonPrimitive.contentOrNull?.toUUIDOrNull()
+                } ?: emptyList(),
                 mediaSourceId = jsonObject["mediaSourceId"]?.jsonPrimitive?.contentOrNull,
                 startIndex = jsonObject["startIndex"]?.jsonPrimitive?.intOrNull ?: 0,
                 startPosition = (jsonObject["startPositionTicks"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0 })?.ticks,
@@ -37,7 +39,8 @@ data class PlayOptions(
                 subtitleStreamIndex = jsonObject["subtitleStreamIndex"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(),
                 playFromDownloads = false,
             )
-        } catch (e: Exception) {
+        } catch (e: IllegalArgumentException) {
+            // Also covers kotlinx.serialization.SerializationException, a subclass of IllegalArgumentException
             Timber.e(e, "Failed to parse playback options: %s", json)
             null
         }

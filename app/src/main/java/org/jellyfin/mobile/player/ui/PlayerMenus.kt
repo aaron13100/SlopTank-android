@@ -30,7 +30,6 @@ import org.jellyfin.sdk.model.api.ChapterInfo
 import org.jellyfin.sdk.model.api.MediaStream
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.util.Locale
 
 /**
  *  Provides a menu UI for audio, subtitle and video stream selection
@@ -167,8 +166,7 @@ class PlayerMenus(
         val videoStream = mediaSource.selectedVideoStream
 
         val audioStreams = mediaSource.audioStreams
-        buildMenuItems(
-            audioStreamsMenu.menu,
+        audioStreamsMenu.menu.buildStreamMenuItems(
             AUDIO_MENU_GROUP,
             audioStreams,
             mediaSource.selectedAudioStream,
@@ -176,12 +174,11 @@ class PlayerMenus(
 
         val subtitleStreams = mediaSource.subtitleStreams
         val selectedSubtitleStream = mediaSource.selectedSubtitleStream
-        buildMenuItems(
-            subtitlesMenu.menu,
+        subtitlesMenu.menu.buildStreamMenuItems(
             SUBTITLES_MENU_GROUP,
             subtitleStreams,
             selectedSubtitleStream,
-            true,
+            noneTitle = fragment.getString(R.string.menu_item_none),
         )
         subtitleCount = subtitleStreams.size
         subtitlesEnabled = selectedSubtitleStream != null
@@ -354,32 +351,6 @@ class PlayerMenus(
         decoderMenu.menu.findItem(type.ordinal).isChecked = true
     }
 
-    private fun buildMenuItems(
-        menu: Menu,
-        groupId: Int,
-        mediaStreams: List<MediaStream>,
-        selectedStream: MediaStream?,
-        showNone: Boolean = false,
-    ) {
-        menu.clear()
-        val itemNone = when {
-            showNone -> menu.add(groupId, -1, Menu.NONE, fragment.getString(R.string.menu_item_none))
-            else -> null
-        }
-        var selectedItem: MenuItem? = itemNone
-        val menuItems = mediaStreams.map { mediaStream ->
-            val title = mediaStream.displayTitle ?: "${mediaStream.language} (${mediaStream.codec})"
-            menu.add(groupId, mediaStream.index, Menu.NONE, title).also { item ->
-                if (mediaStream === selectedStream) {
-                    selectedItem = item
-                }
-            }
-        }
-        menu.setGroupCheckable(groupId, true, true)
-        // Check selected item or first item if possible
-        (selectedItem ?: menuItems.firstOrNull())?.isChecked = true
-    }
-
     private fun updateSubtitlesButton() {
         subtitlesButton.isVisible = subtitleCount > 0
         val stateSet = intArrayOf(android.R.attr.state_checked * if (subtitlesEnabled) 1 else -1)
@@ -411,18 +382,6 @@ class PlayerMenus(
         fragment.onPopupDismissed()
     }
 
-    private fun formatBitrate(bitrate: Double): String {
-        val (value, unit) = when {
-            bitrate > BITRATE_MEGA_BIT -> bitrate / BITRATE_MEGA_BIT to " Mbps"
-            bitrate > BITRATE_KILO_BIT -> bitrate / BITRATE_KILO_BIT to " kbps"
-            else -> bitrate to " bps"
-        }
-
-        // Remove unnecessary trailing zeros
-        val formatted = "%.2f".format(Locale.getDefault(), value).removeSuffix(".00")
-        return formatted + unit
-    }
-
     companion object {
         private const val SUBTITLES_MENU_GROUP = 0
         private const val AUDIO_MENU_GROUP = 1
@@ -432,9 +391,6 @@ class PlayerMenus(
 
         private const val MAX_VIDEO_STREAMS_DISPLAY = 3
         private const val MAX_AUDIO_STREAMS_DISPLAY = 5
-
-        private const val BITRATE_MEGA_BIT = 1_000_000
-        private const val BITRATE_KILO_BIT = 1_000
 
         private const val SPEED_MENU_STEP_SIZE = 0.25f
         private const val SPEED_MENU_STEP_MIN = 2 // → 0.5x

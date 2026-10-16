@@ -9,32 +9,25 @@ import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.operations.MediaInfoApi
 import org.jellyfin.sdk.api.operations.UserLibraryApi
-import org.jellyfin.sdk.model.api.DeviceProfile
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PlaybackInfoDto
 import org.jellyfin.sdk.model.extensions.inWholeTicks
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
-import java.util.UUID
-import kotlin.time.Duration
 
 class MediaSourceResolver(private val apiClient: ApiClient) {
     private val mediaInfoApi: MediaInfoApi = apiClient.mediaInfoApi
     private val userLibraryApi: UserLibraryApi = apiClient.userLibraryApi
 
     @Suppress("ReturnCount")
-    suspend fun resolveMediaSource(
-        itemId: UUID,
-        mediaSourceId: String? = null,
-        deviceProfile: DeviceProfile? = null,
-        maxStreamingBitrate: Int? = null,
-        startTime: Duration? = null,
-        audioStreamIndex: Int? = null,
-        subtitleStreamIndex: Int? = null,
-        autoOpenLiveStream: Boolean = true,
-        enableDirectPlay: Boolean? = null,
-        enableDirectStream: Boolean? = null,
-    ): Result<RemoteJellyfinMediaSource> {
+    suspend fun resolveMediaSource(request: MediaSourceRequest): Result<RemoteJellyfinMediaSource> {
+        val itemId = request.itemId
+        val mediaSourceId = request.mediaSourceId
+        val maxStreamingBitrate = request.maxStreamingBitrate
+        val startTime = request.startTime
+        val audioStreamIndex = request.audioStreamIndex
+        val subtitleStreamIndex = request.subtitleStreamIndex
+
         // Load media source info
         val playSessionId: String
         val mediaSourceInfo: MediaSourceInfo = try {
@@ -50,14 +43,14 @@ class MediaSourceResolver(private val apiClient: ApiClient) {
                         mediaSourceId = mediaSourceId ?: itemId.toString().replace("-", "").takeIf {
                             audioStreamIndex != null || subtitleStreamIndex != null
                         },
-                        deviceProfile = deviceProfile,
+                        deviceProfile = request.deviceProfile,
                         maxStreamingBitrate = maxStreamingBitrate,
                         startTimeTicks = startTime?.inWholeTicks,
                         audioStreamIndex = audioStreamIndex,
                         subtitleStreamIndex = subtitleStreamIndex,
-                        autoOpenLiveStream = autoOpenLiveStream,
-                        enableDirectPlay = enableDirectPlay,
-                        enableDirectStream = enableDirectStream,
+                        autoOpenLiveStream = request.autoOpenLiveStream,
+                        enableDirectPlay = request.enableDirectPlay,
+                        enableDirectStream = request.enableDirectStream,
                     ),
                 ).content
             }
@@ -90,7 +83,6 @@ class MediaSourceResolver(private val apiClient: ApiClient) {
                 item = item,
                 sourceInfo = mediaSourceInfo,
                 playSessionId = playSessionId,
-                liveStreamId = mediaSourceInfo.liveStreamId,
                 maxStreamingBitrate = maxStreamingBitrate,
                 playbackDetails = PlaybackDetails(startTime, audioStreamIndex, subtitleStreamIndex),
             )

@@ -17,7 +17,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.Clock
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.DefaultAnalyticsCollector
@@ -229,50 +228,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
      * Setup a new [ExoPlayer] for video playback, register callbacks and set attributes
      */
     fun setupPlayer() {
-        @Suppress("MagicNumber")
-        val loadControl = when (appPreferences.exoPlayerNetworkBuffer) {
-            Constants.NETWORK_BUFFER_LARGE -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(50_000, 120_000, 2_500, 5_000)
-                .build()
-            Constants.NETWORK_BUFFER_EXTRA_LARGE -> DefaultLoadControl.Builder()
-                .setBufferDurationsMs(80_000, 240_000, 5_000, 10_000)
-                .build()
-            else -> DefaultLoadControl()
-        }
-        val renderersFactory = DefaultRenderersFactory(getApplication()).apply {
-            setEnableDecoderFallback(true) // Fallback only works if initialization fails, not decoding at playback time
-            val rendererMode = when {
-                fallbackPreferExtensionRenderers -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-            }
-            setExtensionRendererMode(rendererMode)
-            setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-                val decoderInfoList = MediaCodecSelector.DEFAULT.getDecoderInfos(
-                    mimeType,
-                    requiresSecureDecoder,
-                    requiresTunnelingDecoder,
-                )
-                // Allow decoder selection only for video track
-                if (!MimeTypes.isVideo(mimeType)) {
-                    return@setMediaCodecSelector decoderInfoList
-                }
-                val filteredDecoderList = when (decoderType.value) {
-                    DecoderType.HARDWARE -> decoderInfoList.filter(MediaCodecInfo::hardwareAccelerated)
-                    DecoderType.SOFTWARE -> decoderInfoList.filterNot(MediaCodecInfo::hardwareAccelerated)
-                    else -> decoderInfoList
-                }
-                // Update the decoderType based on the first decoder selected
-                filteredDecoderList.firstOrNull()?.let { decoder ->
-                    val decoderType = when {
-                        decoder.hardwareAccelerated -> DecoderType.HARDWARE
-                        else -> DecoderType.SOFTWARE
-                    }
-                    _decoderType.postValue(decoderType)
-                }
-
-                filteredDecoderList
-            }
-        }
+        val loadControl = buildLoadControl(appPreferences.exoPlayerNetworkBuffer)
+        val renderersFactory = buildRenderersFactory()
         _player.value = ExoPlayer.Builder(getApplication(), renderersFactory, get()).apply {
             setUsePlatformDiagnostics(false)
             setTrackSelector(trackSelector)
@@ -283,6 +240,41 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
         }.build().apply {
             addListener(this@PlayerViewModel)
             applyDefaultAudioAttributes(C.AUDIO_CONTENT_TYPE_MOVIE)
+        }
+    }
+
+    private fun buildRenderersFactory() = DefaultRenderersFactory(getApplication()).apply {
+        setEnableDecoderFallback(true) // Fallback only works if initialization fails, not decoding at playback time
+        val rendererMode = when {
+            fallbackPreferExtensionRenderers -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+        }
+        setExtensionRendererMode(rendererMode)
+        setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+            val decoderInfoList = MediaCodecSelector.DEFAULT.getDecoderInfos(
+                mimeType,
+                requiresSecureDecoder,
+                requiresTunnelingDecoder,
+            )
+            // Allow decoder selection only for video track
+            if (!MimeTypes.isVideo(mimeType)) {
+                return@setMediaCodecSelector decoderInfoList
+            }
+            val filteredDecoderList = when (decoderType.value) {
+                DecoderType.HARDWARE -> decoderInfoList.filter(MediaCodecInfo::hardwareAccelerated)
+                DecoderType.SOFTWARE -> decoderInfoList.filterNot(MediaCodecInfo::hardwareAccelerated)
+                else -> decoderInfoList
+            }
+            // Update the decoderType based on the first decoder selected
+            filteredDecoderList.firstOrNull()?.let { decoder ->
+                val decoderType = when {
+                    decoder.hardwareAccelerated -> DecoderType.HARDWARE
+                    else -> DecoderType.SOFTWARE
+                }
+                _decoderType.postValue(decoderType)
+            }
+
+            filteredDecoderList
         }
     }
 
@@ -457,7 +449,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
                             isMuted = false,
                             canSeek = true,
                             positionTicks = playbackPosition.inWholeTicks,
-                            volumeLevel = (currentVolume - volumeRange.first) * Constants.PERCENT_MAX / volumeRange.width,
+                            volumeLevel = (currentVolume - volumeRange.first) * Constants.PERCENT_MAX /
+                                volumeRange.width,
                             repeatMode = RepeatMode.REPEAT_NONE,
                             playbackOrder = PlaybackOrder.DEFAULT,
                         ),
@@ -766,7 +759,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
         }
     }
 
-    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
         playerOrNull?.setWatchedChapterMarkings()
         playerOrNull?.updateSkipMediaSegmentButton()

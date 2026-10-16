@@ -35,7 +35,8 @@ class DeviceProfileBuilder(
 
     init {
         require(
-            SUPPORTED_CONTAINER_FORMATS.size == AVAILABLE_VIDEO_CODECS.size && SUPPORTED_CONTAINER_FORMATS.size == AVAILABLE_AUDIO_CODECS.size,
+            SUPPORTED_CONTAINER_FORMATS.size == AVAILABLE_VIDEO_CODECS.size &&
+                SUPPORTED_CONTAINER_FORMATS.size == AVAILABLE_AUDIO_CODECS.size,
         )
 
         // Load Android-supported codecs
@@ -200,7 +201,10 @@ class DeviceProfileBuilder(
         )
     }
 
-    private fun getSubtitleProfiles(embedded: Array<String>, external: Array<String>): List<SubtitleProfile> = ArrayList<SubtitleProfile>().apply {
+    private fun getSubtitleProfiles(
+        embedded: Array<String>,
+        external: Array<String>,
+    ): List<SubtitleProfile> = ArrayList<SubtitleProfile>().apply {
         for (format in embedded) {
             add(SubtitleProfile(format = format, method = SubtitleDeliveryMethod.EMBED))
         }
@@ -305,7 +309,9 @@ class DeviceProfileBuilder(
             // webm
             arrayOf("vorbis", "opus"),
             // mkv
-            arrayOf(*PCM_CODECS, "mp1", "mp2", "mp3", "aac", "vorbis", "opus", "flac", "alac", "ac3", "eac3", "dts", "mlp", "truehd"),
+            PCM_CODECS + arrayOf(
+                "mp1", "mp2", "mp3", "aac", "vorbis", "opus", "flac", "alac", "ac3", "eac3", "dts", "mlp", "truehd",
+            ),
             // mp3
             arrayOf("mp3"),
             // ogg
@@ -313,7 +319,7 @@ class DeviceProfileBuilder(
             // wav
             PCM_CODECS,
             // mpegts
-            arrayOf(*PCM_CODECS, "mp1", "mp2", "mp3", "aac", "ac3", "eac3", "dts", "mlp", "truehd"),
+            PCM_CODECS + arrayOf("mp1", "mp2", "mp3", "aac", "ac3", "eac3", "dts", "mlp", "truehd"),
             // flv
             arrayOf("mp3", "aac"),
             // aac
@@ -328,7 +334,7 @@ class DeviceProfileBuilder(
          * List of audio codecs that will be added to the device profile regardless of [MediaCodecList] advertising them.
          * This is especially useful for codecs supported by decoders integrated to ExoPlayer or added through an extension.
          */
-        private val FORCED_AUDIO_CODECS = arrayOf(*PCM_CODECS, "alac", "aac", "ac3", "eac3", "dts", "mlp", "truehd")
+        private val FORCED_AUDIO_CODECS = PCM_CODECS + arrayOf("alac", "aac", "ac3", "eac3", "dts", "mlp", "truehd")
 
         private val EXO_EMBEDDED_SUBTITLES = arrayOf("dvbsub", "pgssub", "srt", "subrip", "ttml")
         private val EXO_EXTERNAL_SUBTITLES = arrayOf("srt", "subrip", "ttml", "vtt", "webvtt")

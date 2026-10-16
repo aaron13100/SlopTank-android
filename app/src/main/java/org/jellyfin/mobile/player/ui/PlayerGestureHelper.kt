@@ -193,183 +193,28 @@ class PlayerGestureHelper(
                 if (firstEvent == null) return false
 
                 // Check whether swipe was started in excluded region (vertical)
-                val exclusionSizeVertical = playerView.resources.dip(Constants.SWIPE_GESTURE_EXCLUSION_SIZE_VERTICAL)
-                if (
-                    firstEvent.y < exclusionSizeVertical ||
-                    firstEvent.y > playerView.height - exclusionSizeVertical
-                ) {
-                    return false
-                }
+                if (isInVerticalExclusionZone(firstEvent)) return false
 
                 // Determine/lock gesture direction
-                if (currentGesture == GestureDirection.NONE) {
-                    val deltaX = currentEvent.x - firstEvent.x
-                    val deltaY = currentEvent.y - firstEvent.y
+                if (!lockGestureDirection(firstEvent, currentEvent)) return false
 
-                    currentGesture = if (abs(deltaX) > abs(deltaY) * 2) {
-                        GestureDirection.HORIZONTAL
-                    } else if (abs(deltaY) > abs(deltaX) * 2) {
-                        GestureDirection.VERTICAL
-                    } else {
-                        return false
+                if (currentGesture == GestureDirection.HORIZONTAL) {
+                    if (appPreferences.exoPlayerAllowHorizontalGesture) {
+                        // Handle horizontal swipe for seek
+                        return handleHorizontalSeekGesture(firstEvent, distanceX)
                     }
-                }
-
-                // Handle horizontal swipe for seek
-                if (currentGesture == GestureDirection.HORIZONTAL && appPreferences.exoPlayerAllowHorizontalGesture) {
-                    // Check horizontal exclusion zones (edges of screen)
-                    val exclusionSizeHorizontal = playerView.resources.dip(
-                        Constants.SWIPE_GESTURE_EXCLUSION_SIZE_HORIZONTAL
-                    )
-                    if (
-                        firstEvent.x < exclusionSizeHorizontal ||
-                        firstEvent.x > playerView.width - exclusionSizeHorizontal
-                    ) {
-                        return false
-                    }
-
-                    // Hide vertical overlay
-                    gestureIndicatorOverlayLayout.isVisible = false
-                    gestureIndicatorOverlayLayout.removeCallbacks(hideGestureIndicatorOverlayAction)
-
-                    // Initialize seek start position on first swipe
-                    if (!isHorizontalSeeking) {
-                        val player = playerView.player
-                        if (player != null) {
-                            seekStartPosition = player.currentPosition
-                            mediaDuration = player.duration.coerceAtLeast(0)
-                        }
-                    }
-
-                    isHorizontalSeeking = true
-
-                    // Calculate seek time with non-linear acceleration
-                    // The further you swipe, the faster the seek time increases
-                    val baseSeekDeltaMs = (-distanceX * 1000 / Constants.HORIZONTAL_SWIPE_DISTANCE_PER_SECOND).toLong()
-
-                    // Apply acceleration based on accumulated distance
-                    // Use portrait acceleration (2x) for portrait mode, default for landscape
-                    val accelerationFactor = if (fragment.isLandscape()) {
-                        Constants.SEEK_ACCELERATION_FACTOR
-                    } else {
-                        Constants.SEEK_ACCELERATION_FACTOR_PORTRAIT
-                    }
-                    val currentSeekSeconds = abs(seekTimeAccumulator / 1000f)
-                    val accelerationMultiplier = 1f + (currentSeekSeconds / 30f) * (accelerationFactor - 1f)
-                    val acceleratedSeekDelta = (baseSeekDeltaMs * accelerationMultiplier).toLong()
-
-                    seekTimeAccumulator += acceleratedSeekDelta
-
-                    // Clamp the accumulated seek time to valid range
-                    val minSeek = -seekStartPosition
-                    val maxSeek = if (mediaDuration > 0) mediaDuration - seekStartPosition else Long.MAX_VALUE
-                    // Allow seeking up to media duration (if known). Do not enforce an artificial MAX_SEEK_TIME_MS limit.
-                    seekTimeAccumulator = seekTimeAccumulator.coerceIn(minSeek, maxSeek)
-
-                    // Update the seek overlay with mm:ss format
-                    val totalSeconds = abs(seekTimeAccumulator / 1000)
-                    val minutes = totalSeconds / 60
-                    val seconds = totalSeconds % 60
-                    val timeFormatted = String.format(Locale.US, "%02d:%02d", minutes, seconds)
-                    val seekText = if (seekTimeAccumulator >= 0) "+$timeFormatted" else "-$timeFormatted"
-                    seekOverlayText.text = seekText
-
-                    // Update position text (current position / duration)
-                    val targetPosition = (seekStartPosition + seekTimeAccumulator).coerceIn(0, mediaDuration)
-                    seekPositionText.text = "${formatTime(targetPosition)} / ${formatTime(mediaDuration)}"
-
-                    // Update progress bar
-                    if (mediaDuration > 0) {
-                        seekOverlayProgress.max = 1000
-                        seekOverlayProgress.progress = (targetPosition * 1000 / mediaDuration).toInt()
-                    }
-
-                    // Set appropriate icon based on direction
-                    val iconRes = if (seekTimeAccumulator >= 0) {
-                        R.drawable.ic_fast_forward_black_32dp
-                    } else {
-                        R.drawable.ic_rewind_black_32dp
-                    }
-                    seekOverlayImage.setImageResource(iconRes)
-
-                    seekOverlayLayout.isVisible = true
-                    return true
-                } else if (currentGesture == GestureDirection.HORIZONTAL && !appPreferences.exoPlayerAllowHorizontalGesture) {
                     // If horizontal gesture is disabled while a gesture was in progress, reset the state
                     currentGesture = GestureDirection.NONE
-                    isHorizontalSeeking = false
-                    seekTimeAccumulator = 0L
-                    seekStartPosition = 0L
-                    mediaDuration = 0L
+                    resetHorizontalSeekState()
                     seekOverlayLayout.isVisible = false
                 }
 
-                if (!appPreferences.exoPlayerAllowSwipeGestures) {
-                    return false
-                }
                 // Handle vertical swipe for brightness/volume (existing logic)
-                if (currentGesture != GestureDirection.VERTICAL) {
+                if (!appPreferences.exoPlayerAllowSwipeGestures || currentGesture != GestureDirection.VERTICAL) {
                     return false
                 }
 
-                // Hide horizontal overlay
-                seekOverlayLayout.isVisible = false
-                seekOverlayLayout.removeCallbacks(hideSeekOverlayAction)
-
-                val viewCenterX = playerView.measuredWidth / 2
-
-                // Distance to swipe to go from min to max
-                val distanceFull = playerView.measuredHeight * Constants.FULL_SWIPE_RANGE_SCREEN_RATIO
-                val ratioChange = distanceY / distanceFull
-
-                if (firstEvent.x.toInt() > viewCenterX) {
-                    // Swiping on the right, change volume
-
-                    val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                    if (swipeGestureValueTracker == -1f) swipeGestureValueTracker = currentVolume.toFloat()
-
-                    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                    val change = ratioChange * maxVolume
-                    swipeGestureValueTracker += change
-
-                    val toSet = swipeGestureValueTracker.toInt().coerceIn(0, maxVolume)
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, toSet, 0)
-
-                    gestureIndicatorOverlayImage.setImageResource(R.drawable.ic_volume_white_24dp)
-                    gestureIndicatorOverlayProgress.max = maxVolume
-                    gestureIndicatorOverlayProgress.progress = toSet
-                } else {
-                    // Swiping on the left, change brightness
-
-                    val window = fragment.requireActivity().window
-                    val brightnessRange = BRIGHTNESS_OVERRIDE_OFF..BRIGHTNESS_OVERRIDE_FULL
-
-                    // Initialize on first swipe
-                    if (swipeGestureValueTracker == -1f) {
-                        val brightness = window.brightness
-                        swipeGestureValueTracker = when (brightness) {
-                            in brightnessRange -> brightness
-                            else -> {
-                                Settings.System.getFloat(
-                                    fragment.requireActivity().contentResolver,
-                                    Settings.System.SCREEN_BRIGHTNESS,
-                                ) / Constants.SCREEN_BRIGHTNESS_MAX
-                            }
-                        }
-                    }
-
-                    swipeGestureValueTracker = (swipeGestureValueTracker + ratioChange).coerceIn(brightnessRange)
-                    window.brightness = swipeGestureValueTracker
-                    if (appPreferences.exoPlayerRememberBrightness) {
-                        appPreferences.exoPlayerBrightness = swipeGestureValueTracker
-                    }
-
-                    gestureIndicatorOverlayImage.setImageResource(R.drawable.ic_brightness_white_24dp)
-                    gestureIndicatorOverlayProgress.max = Constants.PERCENT_MAX
-                    gestureIndicatorOverlayProgress.progress = (swipeGestureValueTracker * Constants.PERCENT_MAX).toInt()
-                }
-
-                gestureIndicatorOverlayLayout.isVisible = true
+                handleVerticalSwipeGesture(firstEvent, distanceY)
                 return true
             }
         },
@@ -416,7 +261,7 @@ class PlayerGestureHelper(
                 }
 
                 // Handle horizontal seek gesture completion
-                if (event.action == MotionEvent.ACTION_UP && currentGesture == GestureDirection.HORIZONTAL && isHorizontalSeeking && seekTimeAccumulator != 0L) {
+                if (event.action == MotionEvent.ACTION_UP && hasPendingHorizontalSeek()) {
                     fragment.onSeekByOffset(seekTimeAccumulator)
                     seekOverlayLayout.apply {
                         removeCallbacks(hideSeekOverlayAction)
@@ -427,10 +272,7 @@ class PlayerGestureHelper(
                     }
                 }
                 currentGesture = GestureDirection.NONE
-                isHorizontalSeeking = false
-                seekTimeAccumulator = 0L
-                seekStartPosition = 0L
-                mediaDuration = 0L
+                resetHorizontalSeekState()
 
                 // Hide gesture indicator after timeout, if shown
                 gestureIndicatorOverlayLayout.apply {
@@ -453,21 +295,239 @@ class PlayerGestureHelper(
     }
 
     private fun updateZoomMode(enabled: Boolean) {
-        playerView.resizeMode = if (enabled) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
+        playerView.resizeMode = if (enabled) {
+            AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+        } else {
+            AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+    }
+
+    private fun isInVerticalExclusionZone(event: MotionEvent): Boolean {
+        val exclusionSizeVertical = playerView.resources.dip(Constants.SWIPE_GESTURE_EXCLUSION_SIZE_VERTICAL)
+        return event.y < exclusionSizeVertical || event.y > playerView.height - exclusionSizeVertical
+    }
+
+    private fun isInHorizontalExclusionZone(event: MotionEvent): Boolean {
+        val exclusionSizeHorizontal = playerView.resources.dip(Constants.SWIPE_GESTURE_EXCLUSION_SIZE_HORIZONTAL)
+        return event.x < exclusionSizeHorizontal || event.x > playerView.width - exclusionSizeHorizontal
+    }
+
+    /**
+     * Determine the gesture direction if none has been locked yet.
+     *
+     * @return false if the direction could not be determined (yet), true otherwise
+     */
+    private fun lockGestureDirection(firstEvent: MotionEvent, currentEvent: MotionEvent): Boolean {
+        if (currentGesture != GestureDirection.NONE) return true
+
+        val deltaX = currentEvent.x - firstEvent.x
+        val deltaY = currentEvent.y - firstEvent.y
+
+        currentGesture = if (abs(deltaX) > abs(deltaY) * 2) {
+            GestureDirection.HORIZONTAL
+        } else if (abs(deltaY) > abs(deltaX) * 2) {
+            GestureDirection.VERTICAL
+        } else {
+            return false
+        }
+        return true
+    }
+
+    private fun hasPendingHorizontalSeek(): Boolean =
+        currentGesture == GestureDirection.HORIZONTAL && isHorizontalSeeking && seekTimeAccumulator != 0L
+
+    private fun resetHorizontalSeekState() {
+        isHorizontalSeeking = false
+        seekTimeAccumulator = 0L
+        seekStartPosition = 0L
+        mediaDuration = 0L
+    }
+
+    /**
+     * Handle a horizontal swipe, which seeks in the current media.
+     *
+     * @return true if the event was consumed
+     */
+    private fun handleHorizontalSeekGesture(firstEvent: MotionEvent, distanceX: Float): Boolean {
+        // Check horizontal exclusion zones (edges of screen)
+        if (isInHorizontalExclusionZone(firstEvent)) return false
+
+        // Hide vertical overlay
+        gestureIndicatorOverlayLayout.isVisible = false
+        gestureIndicatorOverlayLayout.removeCallbacks(hideGestureIndicatorOverlayAction)
+
+        // Initialize seek start position on first swipe
+        if (!isHorizontalSeeking) {
+            val player = playerView.player
+            if (player != null) {
+                seekStartPosition = player.currentPosition
+                mediaDuration = player.duration.coerceAtLeast(0)
+            }
+        }
+
+        isHorizontalSeeking = true
+
+        seekTimeAccumulator += calculateAcceleratedSeekDelta(distanceX)
+
+        // Clamp the accumulated seek time to valid range
+        val minSeek = -seekStartPosition
+        val maxSeek = if (mediaDuration > 0) mediaDuration - seekStartPosition else Long.MAX_VALUE
+        // Allow seeking up to media duration (if known). Do not enforce an artificial MAX_SEEK_TIME_MS limit.
+        seekTimeAccumulator = seekTimeAccumulator.coerceIn(minSeek, maxSeek)
+
+        updateSeekOverlay()
+        return true
+    }
+
+    /**
+     * Calculate seek time with non-linear acceleration.
+     * The further you swipe, the faster the seek time increases.
+     */
+    private fun calculateAcceleratedSeekDelta(distanceX: Float): Long {
+        val baseSeekDeltaMs = (-distanceX * MILLIS_PER_SECOND / Constants.HORIZONTAL_SWIPE_DISTANCE_PER_SECOND).toLong()
+
+        // Apply acceleration based on accumulated distance
+        // Use portrait acceleration (2x) for portrait mode, default for landscape
+        val accelerationFactor = if (fragment.isLandscape()) {
+            Constants.SEEK_ACCELERATION_FACTOR
+        } else {
+            Constants.SEEK_ACCELERATION_FACTOR_PORTRAIT
+        }
+        val currentSeekSeconds = abs(seekTimeAccumulator / MILLIS_PER_SECOND.toFloat())
+        val accelerationMultiplier =
+            1f + (currentSeekSeconds / SEEK_ACCELERATION_RAMP_SECONDS) * (accelerationFactor - 1f)
+        return (baseSeekDeltaMs * accelerationMultiplier).toLong()
+    }
+
+    private fun updateSeekOverlay() {
+        // Update the seek overlay with mm:ss format
+        val totalSeconds = abs(seekTimeAccumulator / MILLIS_PER_SECOND)
+        val minutes = totalSeconds / SECONDS_PER_MINUTE
+        val seconds = totalSeconds % SECONDS_PER_MINUTE
+        val timeFormatted = String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        val seekText = if (seekTimeAccumulator >= 0) "+$timeFormatted" else "-$timeFormatted"
+        seekOverlayText.text = seekText
+
+        // Update position text (current position / duration)
+        val targetPosition = (seekStartPosition + seekTimeAccumulator).coerceIn(0, mediaDuration)
+        seekPositionText.text = "${formatTime(targetPosition)} / ${formatTime(mediaDuration)}"
+
+        // Update progress bar
+        if (mediaDuration > 0) {
+            seekOverlayProgress.max = SEEK_PROGRESS_MAX
+            seekOverlayProgress.progress = (targetPosition * SEEK_PROGRESS_MAX / mediaDuration).toInt()
+        }
+
+        // Set appropriate icon based on direction
+        val iconRes = if (seekTimeAccumulator >= 0) {
+            R.drawable.ic_fast_forward_black_32dp
+        } else {
+            R.drawable.ic_rewind_black_32dp
+        }
+        seekOverlayImage.setImageResource(iconRes)
+
+        seekOverlayLayout.isVisible = true
+    }
+
+    /**
+     * Handle a vertical swipe, which changes the volume (right side) or the brightness (left side).
+     */
+    private fun handleVerticalSwipeGesture(firstEvent: MotionEvent, distanceY: Float) {
+        // Hide horizontal overlay
+        seekOverlayLayout.isVisible = false
+        seekOverlayLayout.removeCallbacks(hideSeekOverlayAction)
+
+        val viewCenterX = playerView.measuredWidth / 2
+
+        // Distance to swipe to go from min to max
+        val distanceFull = playerView.measuredHeight * Constants.FULL_SWIPE_RANGE_SCREEN_RATIO
+        val ratioChange = distanceY / distanceFull
+
+        if (firstEvent.x.toInt() > viewCenterX) {
+            // Swiping on the right, change volume
+            changeVolume(ratioChange)
+        } else {
+            // Swiping on the left, change brightness
+            changeBrightness(ratioChange)
+        }
+
+        gestureIndicatorOverlayLayout.isVisible = true
+    }
+
+    private fun changeVolume(ratioChange: Float) {
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        if (swipeGestureValueTracker == -1f) swipeGestureValueTracker = currentVolume.toFloat()
+
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val change = ratioChange * maxVolume
+        swipeGestureValueTracker += change
+
+        val toSet = swipeGestureValueTracker.toInt().coerceIn(0, maxVolume)
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, toSet, 0)
+
+        gestureIndicatorOverlayImage.setImageResource(R.drawable.ic_volume_white_24dp)
+        gestureIndicatorOverlayProgress.max = maxVolume
+        gestureIndicatorOverlayProgress.progress = toSet
+    }
+
+    private fun changeBrightness(ratioChange: Float) {
+        val window = fragment.requireActivity().window
+        val brightnessRange = BRIGHTNESS_OVERRIDE_OFF..BRIGHTNESS_OVERRIDE_FULL
+
+        // Initialize on first swipe
+        if (swipeGestureValueTracker == -1f) {
+            val brightness = window.brightness
+            swipeGestureValueTracker = when (brightness) {
+                in brightnessRange -> brightness
+                else -> {
+                    Settings.System.getFloat(
+                        fragment.requireActivity().contentResolver,
+                        Settings.System.SCREEN_BRIGHTNESS,
+                    ) / Constants.SCREEN_BRIGHTNESS_MAX
+                }
+            }
+        }
+
+        swipeGestureValueTracker = (swipeGestureValueTracker + ratioChange).coerceIn(brightnessRange)
+        window.brightness = swipeGestureValueTracker
+        if (appPreferences.exoPlayerRememberBrightness) {
+            appPreferences.exoPlayerBrightness = swipeGestureValueTracker
+        }
+
+        gestureIndicatorOverlayImage.setImageResource(R.drawable.ic_brightness_white_24dp)
+        gestureIndicatorOverlayProgress.max = Constants.PERCENT_MAX
+        gestureIndicatorOverlayProgress.progress =
+            (swipeGestureValueTracker * Constants.PERCENT_MAX).toInt()
     }
 
     /**
      * Format time in milliseconds to mm:ss or h:mm:ss format
      */
     private fun formatTime(timeMs: Long): String {
-        val totalSeconds = timeMs / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
+        val totalSeconds = timeMs / MILLIS_PER_SECOND
+        val hours = totalSeconds / SECONDS_PER_HOUR
+        val minutes = (totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
+        val seconds = totalSeconds % SECONDS_PER_MINUTE
         return if (hours > 0) {
             String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
         } else {
             String.format(Locale.US, "%02d:%02d", minutes, seconds)
         }
+    }
+
+    private companion object {
+        const val MILLIS_PER_SECOND = 1000
+        const val SECONDS_PER_MINUTE = 60
+        const val SECONDS_PER_HOUR = 3600
+
+        /**
+         * Accumulated seek time (in seconds) at which the full acceleration factor is reached.
+         */
+        const val SEEK_ACCELERATION_RAMP_SECONDS = 30f
+
+        /**
+         * Resolution of the seek overlay progress bar.
+         */
+        const val SEEK_PROGRESS_MAX = 1000
     }
 }

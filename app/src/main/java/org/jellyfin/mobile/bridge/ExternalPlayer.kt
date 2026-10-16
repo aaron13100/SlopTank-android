@@ -20,6 +20,7 @@ import org.jellyfin.mobile.player.deviceprofile.DeviceProfileBuilder
 import org.jellyfin.mobile.player.interaction.PlayOptions
 import org.jellyfin.mobile.player.source.ExternalSubtitleStream
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
+import org.jellyfin.mobile.player.source.MediaSourceRequest
 import org.jellyfin.mobile.player.source.MediaSourceResolver
 import org.jellyfin.mobile.settings.ExternalPlayerPackage
 import org.jellyfin.mobile.settings.VideoPlayerType
@@ -95,14 +96,16 @@ class ExternalPlayer(
         coroutinesScope.launch {
             // Resolve media source to query info about external (subtitle) streams
             mediaSourceResolver.resolveMediaSource(
-                itemId = itemId,
-                mediaSourceId = playOptions.mediaSourceId,
-                deviceProfile = externalPlayerProfile,
-                startTime = playOptions.startPosition,
-                audioStreamIndex = playOptions.audioStreamIndex,
-                subtitleStreamIndex = playOptions.subtitleStreamIndex,
-                maxStreamingBitrate = Int.MAX_VALUE, // ensure we always direct play
-                autoOpenLiveStream = false,
+                MediaSourceRequest(
+                    itemId = itemId,
+                    mediaSourceId = playOptions.mediaSourceId,
+                    deviceProfile = externalPlayerProfile,
+                    startTime = playOptions.startPosition,
+                    audioStreamIndex = playOptions.audioStreamIndex,
+                    subtitleStreamIndex = playOptions.subtitleStreamIndex,
+                    maxStreamingBitrate = Int.MAX_VALUE, // ensure we always direct play
+                    autoOpenLiveStream = false,
+                ),
             ).onSuccess { jellyfinMediaSource ->
                 playMediaSource(playOptions, jellyfinMediaSource)
             }.onFailure { error ->
@@ -283,14 +286,16 @@ class ExternalPlayer(
                     }
                     extraPosition > 0L -> {
                         Timber.d(
-                            "Playback stopped [player=$player, extraPosition=$extraPosition, extraDuration=$extraDuration]",
+                            "Playback stopped [player=$player, " +
+                                "extraPosition=$extraPosition, extraDuration=$extraDuration]",
                         )
                         notifyEvent(Constants.EVENT_TIME_UPDATE, "$extraPosition")
                         notifyEvent(Constants.EVENT_ENDED)
                     }
                     else -> {
                         Timber.d(
-                            "Playback canceled [player=$player, extraPosition=$extraPosition, extraDuration=$extraDuration]",
+                            "Playback canceled [player=$player, " +
+                                "extraPosition=$extraPosition, extraDuration=$extraDuration]",
                         )
                         notifyEvent(Constants.EVENT_CANCELED)
                         if (extraPosition == -1L) {

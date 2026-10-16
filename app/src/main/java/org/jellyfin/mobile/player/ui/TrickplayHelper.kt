@@ -85,7 +85,8 @@ class TrickplayHelper(
         mediaSourceId = resolvedMediaSourceId
         durationMs = source.runTime.inWholeMilliseconds
         chapters = item.chapters
-        thumbnailDisplayWidth = (thumbnailDisplayHeight * resolvedTrickPlayInfo.width.toFloat() / resolvedTrickPlayInfo.height).roundToInt()
+        val aspectRatio = resolvedTrickPlayInfo.width.toFloat() / resolvedTrickPlayInfo.height
+        thumbnailDisplayWidth = (thumbnailDisplayHeight * aspectRatio).roundToInt()
         thumbnailView.updateLayoutParams<ViewGroup.LayoutParams> { width = thumbnailDisplayWidth }
     }
 
@@ -116,7 +117,8 @@ class TrickplayHelper(
         thumbnailContainer.x = (scrubberX - thumbnailDisplayWidth / 2f).coerceIn(clampMin, clampMax)
 
         // Update chapter name and timestamp on every move
-        val chapterName = chapters?.lastOrNull { it.startPositionTicks <= position * Constants.TICKS_PER_MILLISECOND }?.name
+        val positionTicks = position * Constants.TICKS_PER_MILLISECOND
+        val chapterName = chapters?.lastOrNull { it.startPositionTicks <= positionTicks }?.name
         chapterNameView.isVisible = !chapterName.isNullOrEmpty()
         if (!chapterName.isNullOrEmpty()) chapterNameView.text = chapterName
         timeView.text = formatPositionAsElapsedTime(position)
@@ -137,12 +139,14 @@ class TrickplayHelper(
 
         val runnable = Runnable {
             dispatchRequest(
-                url,
-                offsetX,
-                offsetY,
-                resolvedTrickPlayInfo.width,
-                resolvedTrickPlayInfo.height,
-                currentTile,
+                TileRequest(
+                    url = url,
+                    offsetX = offsetX,
+                    offsetY = offsetY,
+                    tileWidth = resolvedTrickPlayInfo.width,
+                    tileHeight = resolvedTrickPlayInfo.height,
+                    tile = currentTile,
+                ),
             )
         }
         pendingRequest = runnable
@@ -154,8 +158,8 @@ class TrickplayHelper(
         )
     }
 
-    private fun dispatchRequest(url: String, offsetX: Int, offsetY: Int, tileWidth: Int, tileHeight: Int, tile: Int) {
-        lastDispatchedTile = tile
+    private fun dispatchRequest(request: TileRequest) {
+        lastDispatchedTile = request.tile
         pendingTile = -1
         pendingRequest = null
         nextDispatchAt = SystemClock.uptimeMillis() + Constants.TRICKPLAY_TILE_REFRESH_WINDOW_MS
@@ -163,7 +167,7 @@ class TrickplayHelper(
         currentRequest?.dispose()
         currentRequest = imageLoader.enqueue(
             ImageRequest.Builder(context)
-                .data(url)
+                .data(request.url)
                 .size(Size.ORIGINAL)
                 .maxBitmapSize(Size(Dimension.Undefined, Dimension.Undefined))
                 .httpHeaders(
@@ -180,7 +184,9 @@ class TrickplayHelper(
                         )
                         .build(),
                 )
-                .transformations(SubsetTransformation(offsetX, offsetY, tileWidth, tileHeight))
+                .transformations(
+                    SubsetTransformation(request.offsetX, request.offsetY, request.tileWidth, request.tileHeight),
+                )
                 .target(
                     onSuccess = { image ->
                         if (isScrubbing) {
@@ -207,7 +213,22 @@ class TrickplayHelper(
 
     private fun formatPositionAsElapsedTime(positionMs: Long): String {
         // Add half a second before truncating to match Media3's time display round-to-nearest behavior
-        val roundToNearestThresholdMs = 500L
-        return DateUtils.formatElapsedTime((positionMs + roundToNearestThresholdMs).milliseconds.inWholeSeconds)
+        return DateUtils.formatElapsedTime((positionMs + ROUND_TO_NEAREST_THRESHOLD_MS).milliseconds.inWholeSeconds)
+    }
+
+    /**
+     * A request for a single trickplay thumbnail, cut out of a tile image at [url].
+     */
+    private data class TileRequest(
+        val url: String,
+        val offsetX: Int,
+        val offsetY: Int,
+        val tileWidth: Int,
+        val tileHeight: Int,
+        val tile: Int,
+    )
+
+    private companion object {
+        const val ROUND_TO_NEAREST_THRESHOLD_MS = 500L
     }
 }

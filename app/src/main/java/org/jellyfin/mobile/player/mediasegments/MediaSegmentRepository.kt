@@ -13,6 +13,7 @@ import org.jellyfin.sdk.model.api.MediaSegmentType
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.component.inject
+import timber.log.Timber
 import kotlin.time.Duration.Companion.seconds
 
 fun Map<MediaSegmentType, MediaSegmentAction>.toMediaSegmentActionsString(): String {
@@ -58,6 +59,7 @@ class MediaSegmentRepository : KoinComponent {
                 try {
                     MediaSegmentType.fromName(type) to MediaSegmentAction.valueOf(action)
                 } catch (e: IllegalArgumentException) {
+                    Timber.w(e, "Ignoring invalid media segment action entry: %s", it)
                     null
                 }
             }

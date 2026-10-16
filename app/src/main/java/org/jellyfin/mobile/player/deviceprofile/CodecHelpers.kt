@@ -28,7 +28,11 @@ object CodecHelpers {
         MediaFormat.MIMETYPE_AUDIO_OPUS -> "opus"
         MediaFormat.MIMETYPE_AUDIO_RAW -> "raw"
         MediaFormat.MIMETYPE_AUDIO_VORBIS -> "vorbis"
-        MediaFormat.MIMETYPE_AUDIO_QCELP, MediaFormat.MIMETYPE_AUDIO_MSGSM, MediaFormat.MIMETYPE_AUDIO_G711_MLAW, MediaFormat.MIMETYPE_AUDIO_G711_ALAW -> null
+        MediaFormat.MIMETYPE_AUDIO_QCELP,
+        MediaFormat.MIMETYPE_AUDIO_MSGSM,
+        MediaFormat.MIMETYPE_AUDIO_G711_MLAW,
+        MediaFormat.MIMETYPE_AUDIO_G711_ALAW,
+        -> null
         else -> null
     }
 
