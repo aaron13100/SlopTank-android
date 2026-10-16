@@ -125,8 +125,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Sync progress recorded offline as soon as a network is available
-        ProgressSyncWorker.schedule(this)
+        // Sync progress recorded offline as soon as a network is available, and again after each sign-in
+        lifecycleScope.launch {
+            mainViewModel.userState.collectLatest { state ->
+                if (state is UserState.Available) ProgressSyncWorker.schedule(this@MainActivity)
+            }
+        }
 
         // Bind player service
         bindService(Intent(this, RemotePlayerService::class.java), serviceConnection, Service.BIND_AUTO_CREATE)

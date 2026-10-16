@@ -39,6 +39,13 @@ class ApiClientController(
         configureApiClientUser(userId, accessToken)
     }
 
+    suspend fun signOutCurrentUser() {
+        val userId = appPreferences.currentUserId ?: return
+        withContext(Dispatchers.IO) { userDao.logout(userId) }
+        appPreferences.currentUserId = null
+        resetApiClientUser()
+    }
+
     suspend fun loadSavedServer(): ServerEntity? {
         val server = withContext(Dispatchers.IO) {
             val serverId = appPreferences.currentServerId ?: return@withContext null

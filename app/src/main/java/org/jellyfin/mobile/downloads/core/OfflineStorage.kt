@@ -91,6 +91,18 @@ class OfflineStorage(
         return !dir.exists()
     }
 
+    /**
+     * Deletes item folders that no download row refers to any more (a removal that raced a running transfer,
+     * or rows removed together with their server or user). Returns the deleted folders.
+     */
+    fun sweepOrphans(knownItemDirs: Set<File>): List<File> {
+        val known = knownItemDirs.map { it.canonicalFile }.toSet()
+        val itemDirs = root.listFiles().orEmpty().flatMap { server ->
+            server.listFiles().orEmpty().flatMap { account -> account.listFiles().orEmpty().toList() }
+        }
+        return itemDirs.filter { it.canonicalFile !in known }.onEach(::deleteTree)
+    }
+
     fun prepareDir(dir: File) {
         requireInside(dir)
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Unable to create $dir")

@@ -108,6 +108,9 @@ class ActivityEventHandler(
             ActivityEvent.SelectServer -> {
                 mainViewModel.resetServer()
             }
+            ActivityEvent.SignedOut -> {
+                lifecycleScope.launch { mainViewModel.signOut() }
+            }
             ActivityEvent.ExitApp -> {
                 if (serviceBinder?.isPlaying == true) {
                     moveTaskToBack(false)

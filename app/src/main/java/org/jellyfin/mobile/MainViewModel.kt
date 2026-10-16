@@ -39,6 +39,15 @@ class MainViewModel(
         refreshUser()
     }
 
+    /**
+     * Forgets the signed-out user's session: the stored token is cleared and the account is no longer current,
+     * so its downloads and offline progress are hidden until it signs in again (they are kept, not deleted).
+     */
+    suspend fun signOut() {
+        apiClientController.signOutCurrentUser()
+        refreshUser()
+    }
+
     private suspend fun refreshServer() {
         val serverEntity = apiClientController.loadSavedServer()
         _serverState.value = serverEntity?.let { entity -> ServerState.Available(entity) } ?: ServerState.Unset

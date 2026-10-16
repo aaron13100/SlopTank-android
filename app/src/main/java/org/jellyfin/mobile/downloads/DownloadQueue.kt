@@ -75,11 +75,7 @@ class DownloadQueue(
 
     /** Deletes item folders of downloads that were removed while a transfer was still writing. */
     private suspend fun removeOrphanedFiles() {
-        val known = downloadDao.getAllDownloadKeys().map { storage.itemDir(it.serverId, it.userId, it.itemId) }.toSet()
-        storage.root.listFiles().orEmpty().forEach { server ->
-            server.listFiles().orEmpty().forEach { account ->
-                account.listFiles().orEmpty().filter { it !in known }.forEach(storage::deleteTree)
-            }
-        }
+        val known = downloadDao.getAllDownloadKeys().map { storage.itemDir(it.serverId, it.userId, it.itemId) }
+        storage.sweepOrphans(known.toSet())
     }
 }

@@ -28,6 +28,12 @@ class NativeNavigationInterface : KoinComponent {
         activityEventHandler.emit(ActivityEvent.SelectServer)
     }
 
+    /** The user signed out in the web app: forget the session so the account's offline data is hidden. */
+    @JavascriptInterface
+    fun onLocalUserSignedOut() {
+        activityEventHandler.emit(ActivityEvent.SignedOut)
+    }
+
     @JavascriptInterface
     fun exitApp() {
         activityEventHandler.emit(ActivityEvent.ExitApp)

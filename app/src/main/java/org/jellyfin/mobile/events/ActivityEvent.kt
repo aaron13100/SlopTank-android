@@ -19,4 +19,5 @@ sealed class ActivityEvent {
     data object SelectServer : ActivityEvent()
     data object ExitApp : ActivityEvent()
     data object OpenDownloads : ActivityEvent()
+    data object SignedOut : ActivityEvent()
 }

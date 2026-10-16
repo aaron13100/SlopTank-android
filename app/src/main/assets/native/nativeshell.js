@@ -79,6 +79,10 @@ window.NativeShell = {
         window.NativeNavigation.openServerSelection();
     },
 
+    onLocalUserSignedOut() {
+        window.NativeNavigation.onLocalUserSignedOut();
+    },
+
     getPlugins() {
         return plugins;
     },

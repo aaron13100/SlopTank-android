@@ -186,6 +186,7 @@
     <string name="download_error_insufficient_storage">not enough storage space</string>
     <string name="download_error_validation_failed">the downloaded file is damaged</string>
     <string name="download_error_server_item_gone">the item is no longer on the server</string>
+    <string name="download_status_removed_from_server">%1$s, removed from the server</string>
     <string name="download_error_auth_expired">sign in again to continue</string>
     <string name="download_error_unknown">unknown error</string>
     <string name="download_settings_dialog_title">Choose download location</string>

@@ -14,6 +14,9 @@ import okhttp3.Response
 import java.io.IOException
 import java.util.UUID
 
+/** The server rejected the account's credentials; syncing waits for a new sign-in. */
+class ProgressAuthException(code: Int) : Exception("Server answered HTTP $code")
+
 /**
  * [ProgressApi] over HTTP against the SlopTank server's conditional progress endpoints
  * (`/UserItems/{itemId}/PlaybackProgress[/Operations]`). Authentication is the account's own header.
@@ -34,6 +37,7 @@ class HttpProgressApi(
                     BaselineResult.Ok(state.serverId, state.toServerProgress())
                 }
                 HTTP_NOT_FOUND -> if (itemExists(itemId)) BaselineResult.Unsupported else BaselineResult.Gone
+                HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> throw ProgressAuthException(response.code)
                 else -> throw IOException("Baseline request answered HTTP ${response.code}")
             }
         }
@@ -52,6 +56,7 @@ class HttpProgressApi(
                     HTTP_BAD_REQUEST, HTTP_GONE, HTTP_UNPROCESSABLE, HTTP_INSUFFICIENT_STORAGE ->
                         ApplyResult.Refused("HTTP ${response.code}")
                     HTTP_NOT_FOUND -> if (itemExists(itemId)) ApplyResult.Unsupported else ApplyResult.Gone
+                    HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> throw ProgressAuthException(response.code)
                     else -> throw IOException("Operation request answered HTTP ${response.code}")
                 }
             }
@@ -133,6 +138,8 @@ class HttpProgressApi(
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
         const val HTTP_OK = 200
         const val HTTP_BAD_REQUEST = 400
+        const val HTTP_UNAUTHORIZED = 401
+        const val HTTP_FORBIDDEN = 403
         const val HTTP_NOT_FOUND = 404
         const val HTTP_CONFLICT = 409
         const val HTTP_GONE = 410

@@ -54,4 +54,17 @@ class OfflineStorageTest {
         a.toPath().startsWith(b.toPath()) shouldBe false
         b.toPath().startsWith(a.toPath()) shouldBe false
     }
+
+    @Test
+    fun `orphaned item folders are swept, known ones and outside files stay`() {
+        val kept = storage.itemDir(1, 1, UUID.randomUUID()).apply { mkdirs() }
+        val orphan = storage.itemDir(2, 5, UUID.randomUUID()).apply { mkdirs() }
+        File(kept, "media.mp4").writeBytes(ByteArray(4))
+        File(orphan, ".media.mp4.part").writeBytes(ByteArray(4))
+
+        storage.sweepOrphans(setOf(kept)) shouldBe listOf(orphan)
+        kept.exists() shouldBe true
+        orphan.exists() shouldBe false
+        outside.exists() shouldBe true
+    }
 }

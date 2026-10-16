@@ -60,4 +60,10 @@ class HttpProgressApiTest {
         server.enqueue(MockResponse().setResponseCode(404))
         runBlocking { api.baseline(itemId) } shouldBe BaselineResult.Gone
     }
+
+    @Test
+    fun `rejected credentials stop the sync instead of retrying`() {
+        server.enqueue(MockResponse().setResponseCode(401))
+        io.kotest.assertions.throwables.shouldThrow<ProgressAuthException> { runBlocking { api.baseline(itemId) } }
+    }
 }

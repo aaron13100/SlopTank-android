@@ -39,6 +39,13 @@ interface DownloadFileDao {
     )
     suspend fun resetFile(id: Long)
 
+    /** Forgets every object of a download so it is fetched again; the published files are replaced on success. */
+    @Query(
+        "UPDATE download_file SET status = 'QUEUED', bytes_downloaded = 0, total_bytes = -1, size = 0, " +
+            "validator = NULL, local_path = NULL WHERE download_id = :downloadId",
+    )
+    suspend fun resetFilesOfDownload(downloadId: Long)
+
     @Query(
         "UPDATE download_file SET status = 'DOWNLOADED', bytes_downloaded = :size, total_bytes = :size, " +
             "size = :size, local_path = :localPath WHERE id = :id",

@@ -204,7 +204,16 @@ private fun statusText(context: Context, row: DownloadRow): String {
         }
         DownloadStatus.DOWNLOADED -> {
             val size = row.files.files.sumOf { file -> maxOf(file.bytesDownloaded, file.totalBytes, 0L) }
-            context.getString(R.string.download_status_downloaded, Formatter.formatShortFileSize(context, size))
+            val text = context.getString(
+                R.string.download_status_downloaded,
+                Formatter.formatShortFileSize(context, size)
+            )
+            // Still playable offline; the server copy is gone.
+            if (row.errorReason == DownloadErrorReason.SERVER_ITEM_GONE) {
+                context.getString(R.string.download_status_removed_from_server, text)
+            } else {
+                text
+            }
         }
         DownloadStatus.ERROR,
         DownloadStatus.CANCELLED,

@@ -25,6 +25,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.mobile.MainViewModel
 import org.jellyfin.mobile.bridge.MediaSegments
 import org.jellyfin.mobile.bridge.NativePlayer
+import org.jellyfin.mobile.downloads.CatalogRefresher
 import org.jellyfin.mobile.downloads.DownloadManager
 import org.jellyfin.mobile.downloads.DownloadNotificationManager
 import org.jellyfin.mobile.downloads.DownloadPlanner
@@ -187,6 +188,7 @@ val applicationModule = module {
     single { ProgressRecorder(get<RoomProgressStore>()) { java.time.Instant.now().toString() } }
     single { ProgressReconciler(get<RoomProgressStore>()) }
     single { ProgressApiFactory(get(), get()) }
+    single { CatalogRefresher(get(), get(), get(), get()) }
     single {
         val appPreferences: AppPreferences = get()
         OfflineLibrary(get(), get()) {
