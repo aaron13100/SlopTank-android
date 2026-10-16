@@ -33,6 +33,8 @@ class RoomProgressStore(
         }
     }
 
+    override suspend fun purgeIfDetached(downloadId: Long): Boolean = dao.purgeIfDetached(downloadId) == 1
+
     /** Creates the journal entry of a new download; an existing entry is kept. */
     suspend fun create(entry: ProgressEntry) {
         dao.insertIfAbsent(entry.toEntity())

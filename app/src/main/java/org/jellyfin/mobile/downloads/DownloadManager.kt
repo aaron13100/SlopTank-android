@@ -81,15 +81,22 @@ class DownloadManager(
         changed
     }
 
-    /** Removes the download and its local files. A running transfer notices the removal and stops. */
+    /**
+     * Removes the download and its local files. A running transfer notices the removal and stops. Offline
+     * progress that is not synced yet stays in the journal until the server acknowledges it.
+     */
     suspend fun remove(download: DownloadEntity) = withContext(Dispatchers.IO) {
         downloadDao.delete(download.id)
+        progressStore.purgeIfDetached(download.id)
         storage.deleteTree(storage.itemDir(download.serverId, download.userId, download.itemId))
     }
 
     /** Removes every download of one account. */
     suspend fun removeAll(serverId: Long, userId: Long) = withContext(Dispatchers.IO) {
-        downloadDao.getDownloadsForAccount(serverId, userId).forEach { downloadDao.delete(it.id) }
+        downloadDao.getDownloadsForAccount(serverId, userId).forEach { download ->
+            downloadDao.delete(download.id)
+            progressStore.purgeIfDetached(download.id)
+        }
         storage.deleteTree(storage.accountDir(serverId, userId))
     }
 

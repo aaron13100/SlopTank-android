@@ -77,6 +77,9 @@ class FakeProgressStore : ProgressStore {
     val entries = mutableMapOf<Long, ProgressEntry>()
     private val sequences = mutableMapOf<Pair<Long, Long>, Long>()
 
+    /** Downloads whose row is gone (the journal entry outlives it). */
+    val removedDownloads = mutableSetOf<Long>()
+
     override suspend fun entries(serverId: Long, userId: Long) =
         entries.values.filter { it.serverId == serverId && it.userId == userId }.sortedBy { it.downloadId }
 
@@ -100,5 +103,12 @@ class FakeProgressStore : ProgressStore {
         sequences[key] = sequence
         entries[downloadId] = next
         return next
+    }
+
+    override suspend fun purgeIfDetached(downloadId: Long): Boolean {
+        val entry = entries[downloadId] ?: return false
+        if (downloadId !in removedDownloads || !entry.isSettled) return false
+        entries.remove(downloadId)
+        return true
     }
 }

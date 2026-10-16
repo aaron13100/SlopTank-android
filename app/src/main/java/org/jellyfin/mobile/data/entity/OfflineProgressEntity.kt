@@ -2,26 +2,18 @@ package org.jellyfin.mobile.data.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
 /**
- * The offline progress journal entry of one download (see downloads/progress). Removing the download removes
- * its journal entry.
+ * The offline progress journal entry of one download (see downloads/progress). It deliberately has no foreign
+ * key to the download: removing the download keeps an entry that is not settled until the server acknowledges
+ * it or the conflict is resolved, and a trigger refuses to delete it before that (see [org.jellyfin.mobile.data.ProgressJournalSchema]).
  */
 @Entity(
     tableName = "offline_progress",
     indices = [Index(value = ["server_id", "user_id"])],
-    foreignKeys = [
-        ForeignKey(
-            entity = DownloadEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["download_id"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
 )
 data class OfflineProgressEntity(
     @PrimaryKey @ColumnInfo(name = "download_id") val downloadId: Long,

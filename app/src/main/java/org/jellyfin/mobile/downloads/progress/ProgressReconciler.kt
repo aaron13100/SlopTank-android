@@ -16,6 +16,13 @@ interface ProgressStore {
      * sequence is consumed only if [transform] returns a new entry.
      */
     suspend fun updateWithSequence(downloadId: Long, transform: (ProgressEntry, Long) -> ProgressEntry?): ProgressEntry?
+
+    /**
+     * Deletes the entry only if its download has been removed and the entry is settled (see
+     * [ProgressEntry.isSettled]); unsynced progress of a removed download stays until then. Returns true if
+     * the entry was deleted.
+     */
+    suspend fun purgeIfDetached(downloadId: Long): Boolean
 }
 
 data class ReconcileSummary(
@@ -36,6 +43,8 @@ class ProgressReconciler(private val store: ProgressStore) {
         for (initial in active) {
             refreshIfNeeded(initial, api)?.let { entry -> summary = send(entry, api, summary) }
         }
+        // Entries of removed downloads stay until they are settled; drop the ones that are settled now.
+        store.entries(serverId, userId).filter { it.isSettled }.forEach { store.purgeIfDetached(it.downloadId) }
         return summary
     }
 

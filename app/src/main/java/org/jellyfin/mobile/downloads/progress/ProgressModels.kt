@@ -62,6 +62,10 @@ data class ProgressEntry(
     val frozen: FrozenOperation? = null,
     val state: SyncState = SyncState.CLEAN,
 ) {
+    /** Nothing local is waiting: the server acknowledged it, or a conflict was resolved in its favour. */
+    val isSettled: Boolean
+        get() = !dirty && frozen == null && (state == SyncState.CLEAN || state == SyncState.CONFLICTED)
+
     /** Where offline playback resumes: the newest local state, else the acknowledged server state. */
     val resumePositionTicks: Long
         get() = when {

@@ -187,6 +187,7 @@ dependencies {
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.mockk)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.sqlite.jdbc)
     androidTestImplementation(libs.bundles.androidx.test)
 
     // Formatting rules for detekt

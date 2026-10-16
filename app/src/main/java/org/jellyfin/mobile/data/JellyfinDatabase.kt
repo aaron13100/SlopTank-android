@@ -37,7 +37,7 @@ import java.util.UUID
         OfflineProgressEntity::class,
         ProgressSequenceEntity::class,
     ],
-    version = 7,
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = JellyfinDatabase.MigrateV4::class),
@@ -121,6 +121,21 @@ abstract class JellyfinDatabase : RoomDatabase() {
          */
         private const val SCHEMA_V5 = 5
         private const val SCHEMA_V6 = 6
+        private const val SCHEMA_V7 = 7
+        private const val SCHEMA_V8 = 8
+
+        val MIGRATION_7_8 = object : Migration(SCHEMA_V7, SCHEMA_V8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                ProgressJournalSchema.MIGRATION_7_8.forEach(db::execSQL)
+            }
+        }
+
+        /** Installs the journal's delete guard on every open. */
+        val JOURNAL_GUARD = object : Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                ProgressJournalSchema.OPEN.forEach(db::execSQL)
+            }
+        }
 
         val MIGRATION_5_6 = object : Migration(SCHEMA_V5, SCHEMA_V6) {
             override fun migrate(db: SupportSQLiteDatabase) {

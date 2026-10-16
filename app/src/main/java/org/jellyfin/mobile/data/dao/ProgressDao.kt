@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import org.jellyfin.mobile.data.ProgressJournalSchema
 import org.jellyfin.mobile.data.entity.OfflineProgressEntity
 import org.jellyfin.mobile.data.entity.ProgressSequenceEntity
 
@@ -20,6 +21,10 @@ interface ProgressDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfAbsent(entity: OfflineProgressEntity): Long
+
+    /** Returns 1 if the entry was deleted: only when its download is gone and the entry is settled. */
+    @Query(ProgressJournalSchema.PURGE_IF_DETACHED)
+    suspend fun purgeIfDetached(downloadId: Long): Int
 
     @Query("SELECT DISTINCT server_id, user_id FROM offline_progress")
     suspend fun getAccounts(): List<AccountKey>
