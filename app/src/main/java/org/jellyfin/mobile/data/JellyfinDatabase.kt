@@ -14,10 +14,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.serialization.json.Json
 import org.jellyfin.mobile.data.dao.DownloadDao
 import org.jellyfin.mobile.data.dao.DownloadFileDao
+import org.jellyfin.mobile.data.dao.ProgressDao
 import org.jellyfin.mobile.data.dao.ServerDao
 import org.jellyfin.mobile.data.dao.UserDao
 import org.jellyfin.mobile.data.entity.DownloadEntity
 import org.jellyfin.mobile.data.entity.DownloadFileEntity
+import org.jellyfin.mobile.data.entity.OfflineProgressEntity
+import org.jellyfin.mobile.data.entity.ProgressSequenceEntity
 import org.jellyfin.mobile.data.entity.ServerEntity
 import org.jellyfin.mobile.data.entity.UserEntity
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -31,12 +34,15 @@ import java.util.UUID
         UserEntity::class,
         DownloadEntity::class,
         DownloadFileEntity::class,
+        OfflineProgressEntity::class,
+        ProgressSequenceEntity::class,
     ],
-    version = 6,
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = JellyfinDatabase.MigrateV4::class),
         AutoMigration(from = 4, to = 5, spec = JellyfinDatabase.MigrateV5::class),
+        AutoMigration(from = 6, to = 7, spec = JellyfinDatabase.MigrateV7::class),
     ],
 )
 @TypeConverters(JellyfinDatabase.Converters::class)
@@ -45,6 +51,7 @@ abstract class JellyfinDatabase : RoomDatabase() {
     abstract val userDao: UserDao
     abstract val downloadDao: DownloadDao
     abstract val downloadFileDao: DownloadFileDao
+    abstract val progressDao: ProgressDao
 
     // Converters
 
@@ -94,6 +101,17 @@ abstract class JellyfinDatabase : RoomDatabase() {
 
     @DeleteTable(tableName = "Download")
     class MigrateV5 : AutoMigrationSpec
+
+    /** Version 7 adds the offline progress journal; every existing download gets an empty entry. */
+    class MigrateV7 : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "INSERT OR IGNORE INTO `offline_progress` (`download_id`, `server_id`, `user_id`, `item_id`, " +
+                    "`local_position_ticks`, `local_played`, `local_completions`, `dirty`, `state`) " +
+                    "SELECT `id`, `server_id`, `user_id`, `item_id`, 0, 0, 0, 0, 'CLEAN' FROM `download`",
+            )
+        }
+    }
 
     companion object {
         /**

@@ -13,17 +13,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jellyfin.mobile.data.dao.DownloadDao
 import org.jellyfin.mobile.data.entity.DownloadEntity
 import org.jellyfin.mobile.data.entity.DownloadFiles
 import org.jellyfin.mobile.downloads.core.DownloadErrorReason
+import org.jellyfin.mobile.downloads.progress.ProgressRecorder
 import org.jellyfin.mobile.events.ActivityEvent
 import org.jellyfin.mobile.events.ActivityEventHandler
 import org.jellyfin.mobile.player.interaction.PlayOptions
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.extensions.ticks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.io.File
+import kotlin.time.Duration
 
 /**
  * One row of the downloads screen.
@@ -57,6 +61,7 @@ class DownloadsViewModel : ViewModel(), KoinComponent {
     private val downloadManager: DownloadManager by inject()
     private val offlineLibrary: OfflineLibrary by inject()
     private val activityEventHandler: ActivityEventHandler by inject()
+    private val progressRecorder: ProgressRecorder by inject()
 
     private val account: Pair<Long, Long>? = offlineLibrary.currentAccount()
 
@@ -100,11 +105,19 @@ class DownloadsViewModel : ViewModel(), KoinComponent {
 
     fun open(row: DownloadRow) {
         if (!row.isPlayable || row.download.item.mediaType != MediaType.VIDEO) return
+        viewModelScope.launch {
+            // Resume from the offline journal: the newest local position, else the last known server position.
+            val resumeTicks = withContext(Dispatchers.IO) { progressRecorder.resumePositionTicks(row.download.id) }
+            launchPlayer(row, resumeTicks?.takeIf { it > 0 }?.ticks)
+        }
+    }
+
+    private fun launchPlayer(row: DownloadRow, startPosition: Duration?) {
         val playOptions = PlayOptions(
             ids = listOf(row.download.itemId),
             mediaSourceId = row.download.itemId.toString(),
             startIndex = 0,
-            startPosition = null,
+            startPosition = startPosition,
             audioStreamIndex = null,
             subtitleStreamIndex = null,
             playFromDownloads = true,

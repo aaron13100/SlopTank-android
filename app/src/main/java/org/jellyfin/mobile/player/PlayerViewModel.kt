@@ -45,6 +45,7 @@ import org.jellyfin.mobile.player.mediasegments.MediaSegmentAction
 import org.jellyfin.mobile.player.mediasegments.MediaSegmentRepository
 import org.jellyfin.mobile.player.queue.QueueManager
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
+import org.jellyfin.mobile.player.source.LocalJellyfinMediaSource
 import org.jellyfin.mobile.player.source.RemoteJellyfinMediaSource
 import org.jellyfin.mobile.player.ui.DecoderType
 import org.jellyfin.mobile.player.ui.DisplayPreferences
@@ -165,6 +166,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
     private var displayPreferences = DisplayPreferences()
     private var autoPlayNextEpisodeEnabled: Boolean = false
     private var serverPreferencesRequested = false
+    private val localProgress = LocalProgressTracker(application, get())
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
@@ -265,6 +267,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
         player.prepare()
 
         initialTracksSelected.set(false)
+        localProgress.reset()
 
         val startTime = jellyfinMediaSource.startTime
         if (startTime > Duration.ZERO) player.seekTo(startTime.inWholeMilliseconds)
@@ -326,6 +329,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
     }
 
     private fun startProgressUpdates() {
+        if (mediaSourceOrNull is LocalJellyfinMediaSource) {
+            progressUpdateJob = localProgress.startPeriodic(viewModelScope) { mediaSourceOrNull to playerOrNull }
+            return
+        }
         if (mediaSourceOrNull != null && mediaSourceOrNull !is RemoteJellyfinMediaSource) return
         progressUpdateJob = viewModelScope.launch {
             while (true) {
@@ -472,6 +479,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
     }
 
     private fun reportPlaybackStop() {
+        localProgress.record(mediaSourceOrNull, playerOrNull, final = true)
         val mediaSource = mediaSourceOrNull as? RemoteJellyfinMediaSource ?: return
         val player = playerOrNull ?: return
         val hasFinished = player.playbackState == Player.STATE_ENDED

@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.jellyfin.mobile.downloads.progress.ProgressSyncWorker
 import org.jellyfin.mobile.events.ActivityEventHandler
 import org.jellyfin.mobile.player.cast.Chromecast
 import org.jellyfin.mobile.player.cast.IChromecast
@@ -123,6 +124,9 @@ class MainActivity : AppCompatActivity() {
             }.show()
             return
         }
+
+        // Sync progress recorded offline as soon as a network is available
+        ProgressSyncWorker.schedule(this)
 
         // Bind player service
         bindService(Intent(this, RemotePlayerService::class.java), serviceConnection, Service.BIND_AUTO_CREATE)

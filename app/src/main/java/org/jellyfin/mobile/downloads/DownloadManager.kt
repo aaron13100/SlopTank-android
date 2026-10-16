@@ -9,6 +9,9 @@ import org.jellyfin.mobile.data.entity.DownloadEntity
 import org.jellyfin.mobile.downloads.core.DownloadErrorReason
 import org.jellyfin.mobile.downloads.core.OfflineStorage
 import org.jellyfin.mobile.downloads.core.PortableMediaPolicy
+import org.jellyfin.mobile.downloads.progress.ProgressSyncWorker
+import org.jellyfin.mobile.downloads.progress.RoomProgressStore
+import org.jellyfin.mobile.downloads.progress.newProgressEntry
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.model.api.ItemFields
@@ -23,8 +26,10 @@ class DownloadManager(
     private val downloadDao: DownloadDao,
     private val appPreferences: AppPreferences,
     private val storage: OfflineStorage,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val progressStore: RoomProgressStore,
 ) {
+    private fun clock() = System.currentTimeMillis()
+
     /** Queues [itemIds] for the account using [api]. Items that are not portable are recorded as such. */
     suspend fun enqueueItems(api: ApiClient, serverId: Long, userId: Long, itemIds: Collection<UUID>) =
         withContext(Dispatchers.IO) {
@@ -35,17 +40,21 @@ class DownloadManager(
                     val portable = PortableMediaPolicy.decide(item) is PortableMediaPolicy.Decision.Portable
                     val current = existing[item.id]
                     when {
-                        current == null -> downloadDao.insert(
-                            DownloadEntity(
-                                serverId = serverId,
-                                userId = userId,
-                                itemId = item.id,
-                                path = item.id.toString(),
-                                item = item,
-                                status = if (portable) DownloadStatus.QUEUED else DownloadStatus.ERROR,
-                                errorReason = if (portable) null else DownloadErrorReason.NOT_PORTABLE,
-                            ),
-                        )
+                        current == null -> {
+                            val id = downloadDao.insert(
+                                DownloadEntity(
+                                    serverId = serverId,
+                                    userId = userId,
+                                    itemId = item.id,
+                                    path = item.id.toString(),
+                                    item = item,
+                                    status = if (portable) DownloadStatus.QUEUED else DownloadStatus.ERROR,
+                                    errorReason = if (portable) null else DownloadErrorReason.NOT_PORTABLE,
+                                ),
+                            )
+                            // The progress baseline is read by the next sync while we are still online.
+                            progressStore.create(newProgressEntry(id, serverId, userId, item.id, baseline = null))
+                        }
                         // Asking again for a running or finished download changes nothing (idempotent).
                         current.status in SETTLED_OR_RUNNING -> Unit
                         else -> downloadDao.requeueWithItem(current.id, item, clock())
@@ -53,6 +62,7 @@ class DownloadManager(
                 }
             }
             DownloadWorker.start(context, appPreferences)
+            ProgressSyncWorker.schedule(context)
         }
 
     /** Pauses a queued or running download; its partial data is kept. */

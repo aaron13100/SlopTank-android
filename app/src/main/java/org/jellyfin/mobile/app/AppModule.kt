@@ -36,6 +36,10 @@ import org.jellyfin.mobile.downloads.core.DownloadEngine
 import org.jellyfin.mobile.downloads.core.DownloadRecords
 import org.jellyfin.mobile.downloads.core.RangeDownloader
 import org.jellyfin.mobile.downloads.createOfflineStorage
+import org.jellyfin.mobile.downloads.progress.ProgressApiFactory
+import org.jellyfin.mobile.downloads.progress.ProgressReconciler
+import org.jellyfin.mobile.downloads.progress.ProgressRecorder
+import org.jellyfin.mobile.downloads.progress.RoomProgressStore
 import org.jellyfin.mobile.events.ActivityEventHandler
 import org.jellyfin.mobile.player.deviceprofile.DeviceProfileBuilder
 import org.jellyfin.mobile.player.interaction.PlayerEvent
@@ -173,12 +177,16 @@ val applicationModule = module {
     }
 
     single { createOfflineStorage(get()) }
-    single { DownloadManager(get(), get(), get(), get()) }
+    single { DownloadManager(get(), get(), get(), get(), get()) }
     single { DownloadNotificationManager(get()) }
     single<DownloadRecords> { RoomDownloadRecords(get(), get()) }
     single { RangeDownloader(get(), get()) }
     single { DownloadEngine(get(), get(), get()) }
     single { DownloadPlanner(get()) }
+    single { RoomProgressStore(get()) }
+    single { ProgressRecorder(get<RoomProgressStore>()) { java.time.Instant.now().toString() } }
+    single { ProgressReconciler(get<RoomProgressStore>()) }
+    single { ProgressApiFactory(get(), get()) }
     single {
         val appPreferences: AppPreferences = get()
         OfflineLibrary(get(), get()) {
