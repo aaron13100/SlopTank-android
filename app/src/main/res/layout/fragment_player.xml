@@ -13,7 +13,7 @@
         app:pause_icon="@drawable/ic_pause_black_42dp"
         app:play_icon="@drawable/ic_play_black_42dp" />
 
-    <View
+    <FrameLayout
         android:id="@+id/seek_ripple_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
