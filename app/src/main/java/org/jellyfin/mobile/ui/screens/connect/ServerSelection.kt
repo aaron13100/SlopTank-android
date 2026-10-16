@@ -135,25 +135,29 @@ fun ServerSelection(
         ) { selectionType ->
             when (selectionType) {
                 ServerSelectionMode.ADDRESS -> AddressSelection(
-                    text = hostname,
-                    errorText = when {
-                        externalError -> stringResource(R.string.connection_error_cannot_connect)
-                        else -> (checkUrlState as? CheckUrlState.Error)?.message
-                    },
-                    loading = checkUrlState is CheckUrlState.Pending,
-                    onTextChange = { value ->
-                        externalError = false
-                        checkUrlState = CheckUrlState.Unchecked
-                        hostname = value
-                    },
-                    onDiscoveryClick = {
-                        externalError = false
-                        keyboardController?.hide()
-                        serverSelectionMode = ServerSelectionMode.AUTO_DISCOVERY
-                    },
-                    onSubmit = {
-                        onSubmit()
-                    },
+                    state = AddressSelectionState(
+                        text = hostname,
+                        errorText = when {
+                            externalError -> stringResource(R.string.connection_error_cannot_connect)
+                            else -> (checkUrlState as? CheckUrlState.Error)?.message
+                        },
+                        loading = checkUrlState is CheckUrlState.Pending,
+                    ),
+                    actions = AddressSelectionActions(
+                        onTextChange = { value ->
+                            externalError = false
+                            checkUrlState = CheckUrlState.Unchecked
+                            hostname = value
+                        },
+                        onDiscoveryClick = {
+                            externalError = false
+                            keyboardController?.hide()
+                            serverSelectionMode = ServerSelectionMode.AUTO_DISCOVERY
+                        },
+                        onSubmit = {
+                            onSubmit()
+                        },
+                    ),
                 )
                 ServerSelectionMode.AUTO_DISCOVERY -> ServerDiscoveryList(
                     serverSuggestions = serverSuggestions,
@@ -171,25 +175,42 @@ fun ServerSelection(
     }
 }
 
+/**
+ * The state displayed by [AddressSelection].
+ */
+private data class AddressSelectionState(
+    val text: String,
+    val errorText: String?,
+    val loading: Boolean,
+)
+
+/**
+ * Callbacks for the user interactions of [AddressSelection].
+ */
+private class AddressSelectionActions(
+    val onTextChange: (String) -> Unit,
+    val onDiscoveryClick: () -> Unit,
+    val onSubmit: () -> Unit,
+)
+
 @Stable
 @Composable
 private fun AddressSelection(
-    text: String,
-    errorText: String?,
-    loading: Boolean,
-    onTextChange: (String) -> Unit,
-    onDiscoveryClick: () -> Unit,
-    onSubmit: () -> Unit,
+    state: AddressSelectionState,
+    actions: AddressSelectionActions,
 ) {
+    val text = state.text
+    val errorText = state.errorText
+    val onSubmit = actions.onSubmit
     Column {
         ServerUrlField(
             text = text,
             errorText = errorText,
-            onTextChange = onTextChange,
+            onTextChange = actions.onTextChange,
             onSubmit = onSubmit,
         )
         AnimatedErrorText(errorText = errorText)
-        if (!loading) {
+        if (!state.loading) {
             Spacer(modifier = Modifier.height(12.dp))
             StyledTextButton(
                 text = stringResource(R.string.connect_button_text),
@@ -198,7 +219,7 @@ private fun AddressSelection(
             )
             StyledTextButton(
                 text = stringResource(R.string.choose_server_button_text),
-                onClick = onDiscoveryClick,
+                onClick = actions.onDiscoveryClick,
             )
         } else {
             CenterRow {

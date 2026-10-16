@@ -50,7 +50,8 @@ class FileDownloader(
         val response = okHttpClient.newCall(request).await()
 
         // 416 (Requested Range Not Satisfiable) can happen when we've already fully downloaded the file
-        if (response.code == 416 && rangeStart != null && rangeStart >= response.getContentRange().total) return response
+        val rangeNotSatisfiable = response.code == HTTP_RANGE_NOT_SATISFIABLE
+        if (rangeNotSatisfiable && rangeStart != null && rangeStart >= response.getContentRange().total) return response
 
         // Throw for other unsuccessful responses
         if (!response.isSuccessful) throw IOException("Unexpected response $response")
@@ -79,8 +80,10 @@ class FileDownloader(
     }
 
     private fun Response.getContentRange() = when (code) {
-        200 -> requireNotNull(header("Content-Length")).let(ContentRange::fromContentLengthHeader)
-        206, 416 -> requireNotNull(header("Content-Range")).let(ContentRange::fromContentRangeHeader)
+        HTTP_OK -> requireNotNull(header("Content-Length")).let(ContentRange::fromContentLengthHeader)
+        HTTP_PARTIAL_CONTENT, HTTP_RANGE_NOT_SATISFIABLE -> {
+            requireNotNull(header("Content-Range")).let(ContentRange::fromContentRangeHeader)
+        }
         else -> error("Invalid response code $code")
     }
 
@@ -97,7 +100,7 @@ class FileDownloader(
         val inputStream = response.body?.byteStream() ?: error("Response does not contain a body")
         inputStream.use { inputStream ->
             output.use { outputFile ->
-                val buffer = ByteArray(10240)
+                val buffer = ByteArray(BUFFER_SIZE)
                 var totalRead = contentRange.start
                 var bytesRead: Int
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {
@@ -121,5 +124,12 @@ class FileDownloader(
         val rangeStart = to.statSize
         val response = download(api, from, rangeStart)
         save(response, to, progressCallback)
+    }
+
+    private companion object {
+        const val HTTP_OK = 200
+        const val HTTP_PARTIAL_CONTENT = 206
+        const val HTTP_RANGE_NOT_SATISFIABLE = 416
+        const val BUFFER_SIZE = 10240
     }
 }

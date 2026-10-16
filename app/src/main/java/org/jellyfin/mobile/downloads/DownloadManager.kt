@@ -47,7 +47,8 @@ class DownloadManager(
             // Sanity check, this shouldn't happen really
             if (response.items.size != itemsChunk.size) {
                 error(
-                    "Requested ${itemsChunk.size} items but only got ${response.items.size}. Indicating one or multiple items do not exist.",
+                    "Requested ${itemsChunk.size} items but only got ${response.items.size}. " +
+                        "Indicating one or multiple items do not exist.",
                 )
             }
 

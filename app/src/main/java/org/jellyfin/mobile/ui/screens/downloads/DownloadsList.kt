@@ -37,20 +37,46 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.mobile.R
 import org.jellyfin.mobile.app.StorageManager
 import org.jellyfin.mobile.data.entity.DownloadEntity
+import org.jellyfin.mobile.data.entity.DownloadFileEntity
 import org.jellyfin.mobile.data.entity.DownloadFiles
 import org.jellyfin.mobile.downloads.DownloadFileType
 import org.jellyfin.mobile.downloads.DownloadStatus
 import org.koin.compose.koinInject
 
+/**
+ * Callbacks for the actions that can be performed on the items of a [DownloadsList].
+ */
+class DownloadListActions(
+    val onOpen: (DownloadEntity) -> Unit,
+    val onDownload: (DownloadEntity) -> Unit,
+    val onToggleSelection: (DownloadEntity) -> Unit = {},
+)
+
+/**
+ * The state that is displayed by a single [DownloadItem].
+ */
+data class DownloadItemState(
+    val downloadFiles: DownloadFiles,
+    val isSelected: Boolean = false,
+    val selectionMode: Boolean = false,
+)
+
+/**
+ * Callbacks for the actions that can be performed on a single [DownloadItem].
+ */
+class DownloadItemActions(
+    val onOpen: () -> Unit,
+    val onDownload: () -> Unit,
+    val onToggleSelection: () -> Unit,
+)
+
 @Composable
 fun DownloadsList(
     downloads: List<DownloadFiles>,
-    onOpen: (DownloadEntity) -> Unit,
-    onDownload: (DownloadEntity) -> Unit,
+    actions: DownloadListActions,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues.Zero,
     selection: Set<Long> = emptySet(),
-    onToggleSelection: (DownloadEntity) -> Unit = {},
 ) {
     val selectionMode = selection.isNotEmpty()
 
@@ -63,12 +89,16 @@ fun DownloadsList(
             key = { it.download.id },
         ) { downloadFiles ->
             DownloadItem(
-                downloadFiles = downloadFiles,
-                onOpen = { onOpen(downloadFiles.download) },
-                onDownload = { onDownload(downloadFiles.download) },
-                onToggleSelection = { onToggleSelection(downloadFiles.download) },
-                isSelected = selection.contains(downloadFiles.download.id),
-                selectionMode = selectionMode,
+                state = DownloadItemState(
+                    downloadFiles = downloadFiles,
+                    isSelected = selection.contains(downloadFiles.download.id),
+                    selectionMode = selectionMode,
+                ),
+                actions = DownloadItemActions(
+                    onOpen = { actions.onOpen(downloadFiles.download) },
+                    onDownload = { actions.onDownload(downloadFiles.download) },
+                    onToggleSelection = { actions.onToggleSelection(downloadFiles.download) },
+                ),
             )
         }
     }
@@ -77,15 +107,13 @@ fun DownloadsList(
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DownloadItem(
-    downloadFiles: DownloadFiles,
-    onOpen: () -> Unit,
-    onDownload: () -> Unit,
-    onToggleSelection: () -> Unit,
+    state: DownloadItemState,
+    actions: DownloadItemActions,
     modifier: Modifier = Modifier,
-    isSelected: Boolean = false,
-    selectionMode: Boolean = false,
 ) {
+    val downloadFiles = state.downloadFiles
     val (download, files) = downloadFiles
+    val selectionMode = state.selectionMode
     val context = LocalContext.current
     val storageManager: StorageManager = koinInject()
 
@@ -100,12 +128,12 @@ fun DownloadItem(
             .combinedClickable(
                 onClick = {
                     when {
-                        selectionMode -> onToggleSelection()
-                        !isVerified -> onDownload()
-                        else -> onOpen()
+                        selectionMode -> actions.onToggleSelection()
+                        !isVerified -> actions.onDownload()
+                        else -> actions.onOpen()
                     }
                 },
-                onLongClick = { onToggleSelection() },
+                onLongClick = { actions.onToggleSelection() },
             ),
         text = {
             val name = remember(download, context) { download.getDisplayName(context).orEmpty() }
@@ -116,54 +144,82 @@ fun DownloadItem(
             )
         },
         icon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AnimatedVisibility(
-                    visible = selectionMode,
-                    enter = fadeIn() + expandHorizontally(),
-                    exit = fadeOut() + shrinkHorizontally(),
-                ) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = null,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
-
-                val uri = remember(files) {
-                    files.find { it.type == DownloadFileType.IMAGE_PRIMARY }?.uri
-                }
-
-                AsyncImage(
-                    model = uri,
-                    placeholder = painterResource(R.drawable.ic_local_movies_white_64),
-                    fallback = painterResource(R.drawable.ic_local_movies_white_64),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(
-                        width = 64.dp,
-                        height = 64.dp,
-                    )
-                )
-            }
+            DownloadItemIcon(
+                files = files,
+                isSelected = state.isSelected,
+                selectionMode = selectionMode,
+            )
         },
         secondaryText = {
-            if (download.status == DownloadStatus.DOWNLOADING || download.status == DownloadStatus.QUEUED) {
-                LinearProgressIndicator()
-            } else if (isVerified) {
-                Text(
-                    text = Formatter.formatShortFileSize(context, files.sumOf { it.size }),
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.download_incomplete),
-                    color = Color.Yellow,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                )
-            }
+            DownloadItemSecondaryText(
+                download = download,
+                files = files,
+                isVerified = isVerified,
+            )
         },
         singleLineSecondaryText = true,
     )
+}
+
+@Composable
+private fun DownloadItemIcon(
+    files: List<DownloadFileEntity>,
+    isSelected: Boolean,
+    selectionMode: Boolean,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        AnimatedVisibility(
+            visible = selectionMode,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally(),
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = null,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+
+        val uri = remember(files) {
+            files.find { it.type == DownloadFileType.IMAGE_PRIMARY }?.uri
+        }
+
+        AsyncImage(
+            model = uri,
+            placeholder = painterResource(R.drawable.ic_local_movies_white_64),
+            fallback = painterResource(R.drawable.ic_local_movies_white_64),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(
+                width = 64.dp,
+                height = 64.dp,
+            )
+        )
+    }
+}
+
+@Composable
+private fun DownloadItemSecondaryText(
+    download: DownloadEntity,
+    files: List<DownloadFileEntity>,
+    isVerified: Boolean,
+) {
+    val context = LocalContext.current
+
+    if (download.status == DownloadStatus.DOWNLOADING || download.status == DownloadStatus.QUEUED) {
+        LinearProgressIndicator()
+    } else if (isVerified) {
+        Text(
+            text = Formatter.formatShortFileSize(context, files.sumOf { it.size }),
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+        )
+    } else {
+        Text(
+            text = stringResource(R.string.download_incomplete),
+            color = Color.Yellow,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+        )
+    }
 }

@@ -60,33 +60,47 @@ class DownloadQueue(
             downloadWithFiles.download.userId
         )
 
-        try {
-            val queuedFiles = prepareFiles(api, downloadWithFiles)
+        runCatching {
+            downloadFiles(api, downloadWithFiles)
+        }.onFailure { e ->
+            updateDownloadStatusAfterFailure(downloadWithFiles, e)
+            throw e
+        }
+    }
 
-            val notificationProgressCallback = downloadNotificationManager.downloadFile(
-                downloadWithFiles.download.id,
-                downloadWithFiles.download.getDisplayName(context).orEmpty(),
-            )
+    private suspend fun downloadFiles(api: ApiClient, downloadWithFiles: DownloadFiles) {
+        val queuedFiles = prepareFiles(api, downloadWithFiles)
 
-            for (queuedFile in queuedFiles) {
-                download(api, queuedFile, notificationProgressCallback)
+        val notificationProgressCallback = downloadNotificationManager.downloadFile(
+            downloadWithFiles.download.id,
+            downloadWithFiles.download.getDisplayName(context).orEmpty(),
+        )
+
+        for (queuedFile in queuedFiles) {
+            download(api, queuedFile, notificationProgressCallback)
+        }
+
+        notificationProgressCallback.onEnd()
+        downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.DOWNLOADED))
+    }
+
+    /**
+     * Updates the status of a download after [error] was thrown while processing it.
+     * [Error]s (non-[Exception] throwables) leave the status untouched.
+     */
+    private suspend fun updateDownloadStatusAfterFailure(downloadWithFiles: DownloadFiles, error: Throwable) {
+        when (error) {
+            is CancellationException -> {
+                // The download could've been canceled by the app,
+                // in which case we need to refresh it before making changes
+                val download = downloadDao.getDownload(downloadWithFiles.download.id)
+                if (download?.status == DownloadStatus.DOWNLOADING) {
+                    downloadDao.update(download.copy(status = DownloadStatus.QUEUED))
+                }
             }
-
-            notificationProgressCallback.onEnd()
-            downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.DOWNLOADED))
-        } catch (e: CancellationException) {
-            // The download could've been canceled by the app, in which case we need to refresh it before making changes
-            val download = downloadDao.getDownload(downloadWithFiles.download.id)
-            if (download?.status == DownloadStatus.DOWNLOADING) {
-                downloadDao.update(download.copy(status = DownloadStatus.QUEUED))
-            }
-            throw e
-        } catch (e: IOException) {
-            downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.QUEUED))
-            throw e
-        } catch (e: Exception) {
-            downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.ERROR))
-            throw e
+            is IOException -> downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.QUEUED))
+            is Exception -> downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.ERROR))
+            else -> Unit
         }
     }
 
@@ -108,7 +122,7 @@ class DownloadQueue(
 
         downloadDao.updateFile(file.copy(status = DownloadStatus.DOWNLOADING))
 
-        try {
+        runCatching {
             _downloader.downloadAndSave(
                 api = api,
                 from = remoteUri,
@@ -123,12 +137,22 @@ class DownloadQueue(
                     status = DownloadStatus.DOWNLOADED,
                 ),
             )
-        } catch (e: IOException) {
-            downloadDao.updateFile(file.copy(status = DownloadStatus.QUEUED))
+        }.onFailure { e ->
+            updateFileStatusAfterFailure(file, e)
             throw e
-        } catch (e: Exception) {
-            downloadDao.updateFile(file.copy(status = DownloadStatus.ERROR))
-            throw e
+        }
+    }
+
+    /**
+     * Updates the status of a downloaded file after [error] was thrown while downloading it.
+     * Any [Exception] other than an [IOException] (including cancellation) marks the file as failed,
+     * [Error]s (non-[Exception] throwables) leave the status untouched.
+     */
+    private suspend fun updateFileStatusAfterFailure(file: DownloadFileEntity, error: Throwable) {
+        when (error) {
+            is IOException -> downloadDao.updateFile(file.copy(status = DownloadStatus.QUEUED))
+            is Exception -> downloadDao.updateFile(file.copy(status = DownloadStatus.ERROR))
+            else -> Unit
         }
     }
 
@@ -157,7 +181,8 @@ class DownloadQueue(
             downloadWithFiles = downloadWithFiles,
             itemLocation = itemLocation,
             type = DownloadFileType.ITEM,
-            fileName = downloadWithFiles.download.item.path?.replace(Regex("^.*[\\\\/]"), "") ?: error("Missing item path"),
+            fileName = downloadWithFiles.download.item.path?.replace(Regex("^.*[\\\\/]"), "")
+                ?: error("Missing item path"),
         ),
         remoteUri = api.libraryApi.getDownloadUrl(downloadWithFiles.download.item.id).toUri()
     )

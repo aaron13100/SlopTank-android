@@ -35,7 +35,7 @@ class DownloadNotificationManager(
     }
 
     fun createForegroundInfo() = ForegroundInfo(
-        67,
+        NOTIFICATION_ID,
         NotificationCompat.Builder(context, CHANNEL_ID).apply {
             setContentTitle(context.getString(R.string.downloads))
             setSmallIcon(android.R.drawable.stat_sys_download)
@@ -61,7 +61,7 @@ class NotificationProgressCallback(
             setPriority(NotificationCompat.PRIORITY_LOW)
             setOnlyAlertOnce(true)
             setOngoing(true)
-            setProgress(100, 0, true)
+            setProgress(PROGRESS_MAX, 0, true)
 
             val cancelPendingIntent = PendingIntentCompat.getBroadcast(
                 context,
@@ -81,12 +81,12 @@ class NotificationProgressCallback(
     }
 
     override suspend fun onProgress(downloaded: Long, total: Long) {
-        val progress = (downloaded.toFloat() / (total.toFloat()) * 100).toInt().coerceIn(0, 100)
+        val progress = (downloaded.toFloat() / (total.toFloat()) * PROGRESS_MAX).toInt().coerceIn(0, PROGRESS_MAX)
 
         if (lastProgress == progress) return
         lastProgress = progress
 
-        if (progress == 100) {
+        if (progress == PROGRESS_MAX) {
             builder.apply {
                 setContentText(context.getString(R.string.download_completed))
                 setSubText(null)
@@ -97,7 +97,7 @@ class NotificationProgressCallback(
             builder.apply {
                 setContentText(null)
                 setSubText(context.getString(R.string.download_progress, progress))
-                setProgress(100, progress, false)
+                setProgress(PROGRESS_MAX, progress, false)
                 setOngoing(false)
             }
         }
@@ -106,4 +106,8 @@ class NotificationProgressCallback(
     }
 
     suspend fun onEnd() = onProgress(Long.MAX_VALUE, Long.MAX_VALUE)
+
+    private companion object {
+        const val PROGRESS_MAX = 100
+    }
 }
