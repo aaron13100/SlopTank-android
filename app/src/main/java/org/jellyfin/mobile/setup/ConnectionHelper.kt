@@ -35,7 +35,7 @@ class ConnectionHelper(
         val greatServer = withContext(Dispatchers.IO) {
             jellyfin.discovery.getRecommendedServers(candidates)
         }.firstOrNull { recommendedServer ->
-            when (recommendedServer.score) {
+            when (SlopTankCompatibility.effectiveScore(recommendedServer)) {
                 RecommendedServerInfoScore.GREAT -> true
                 RecommendedServerInfoScore.GOOD -> {
                     goodServers += recommendedServer
