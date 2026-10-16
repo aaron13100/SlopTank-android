@@ -26,21 +26,37 @@ class RoomProgressStore(
         transform: (ProgressEntry, Long) -> ProgressEntry?,
     ): ProgressEntry? = database.withTransaction {
         val current = dao.getEntry(downloadId)?.toEntry() ?: return@withTransaction null
-        val sequence = (dao.getLastSequence(current.serverId, current.userId) ?: 0) + 1
+        val last = dao.getLastSequence(current.serverId, current.userId, current.serverIdentity, current.accountUserId)
+        val sequence = (last ?: 0) + 1
         transform(current, sequence)?.also { next ->
-            dao.setLastSequence(ProgressSequenceEntity(current.serverId, current.userId, sequence))
+            dao.setLastSequence(
+                ProgressSequenceEntity(
+                    current.serverId,
+                    current.userId,
+                    sequence,
+                    current.serverIdentity,
+                    current.accountUserId,
+                ),
+            )
             dao.upsert(next.toEntity())
         }
     }
 
     override suspend fun purgeIfDetached(downloadId: Long): Boolean = dao.purgeIfDetached(downloadId) == 1
 
-    /** Creates the journal entry of a new download; an existing entry is kept. */
+    /** Creates the journal entry of a new download, labelled with its server-side user; an existing entry is kept. */
     suspend fun create(entry: ProgressEntry) {
-        dao.insertIfAbsent(entry.toEntity())
+        val accountUserId = entry.accountUserId ?: database.userDao.getUser(entry.userId)
+            ?.takeIf { it.serverId == entry.serverId }?.userId
+        dao.insertIfAbsent(entry.copy(accountUserId = accountUserId).toEntity())
     }
 
-    suspend fun accounts(): List<Pair<Long, Long>> = dao.getAccounts().map { it.serverId to it.userId }
+    override suspend fun accounts(): List<Pair<Long, Long>> = dao.getAccounts().map { it.serverId to it.userId }
+
+    override suspend fun adopt(account: SyncAccount, serverIdentity: String): Int = database.withTransaction {
+        dao.fillAccountUser(account.serverId, account.userId, account.accountUserId)
+        dao.adoptEntries(account.serverId, account.userId, account.accountUserId, serverIdentity)
+    }
 }
 
 private fun OfflineProgressEntity.toEntry() = ProgressEntry(
@@ -69,6 +85,7 @@ private fun OfflineProgressEntity.toEntry() = ProgressEntry(
         )
     },
     state = SyncState.valueOf(state),
+    accountUserId = accountUserId,
 )
 
 private fun ProgressEntry.toEntity() = OfflineProgressEntity(
@@ -94,4 +111,5 @@ private fun ProgressEntry.toEntity() = OfflineProgressEntity(
     operationPlayCountIncrement = frozen?.playCountIncrement,
     operationLastPlayed = frozen?.lastPlayedDate,
     state = state.name,
+    accountUserId = accountUserId,
 )

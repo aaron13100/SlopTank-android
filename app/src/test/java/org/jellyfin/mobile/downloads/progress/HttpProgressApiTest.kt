@@ -33,6 +33,18 @@ class HttpProgressApiTest {
     }
 
     @Test
+    fun `server identity is the public system id, the same id the progress state carries`() {
+        server.enqueue(json(200, """{"LocalAddress":"http://x","ServerName":"n","Version":"10.11.0","Id":"srv"}"""))
+        runBlocking { api.serverIdentity() } shouldBe "srv"
+        server.takeRequest().path shouldBe "/System/Info/Public"
+
+        server.enqueue(json(200, """{"ServerName":"n"}"""))
+        io.kotest.assertions.throwables.shouldThrow<java.io.IOException> { runBlocking { api.serverIdentity() } }
+        server.enqueue(MockResponse().setResponseCode(503))
+        io.kotest.assertions.throwables.shouldThrow<java.io.IOException> { runBlocking { api.serverIdentity() } }
+    }
+
+    @Test
     fun `operations are sent with every bound identity and outcomes are mapped`() {
         server.enqueue(json(200, """{"Outcome":"Applied","Replayed":true,"State":$state}"""))
         runBlocking { api.apply(itemId, "srv", operation) } shouldBe

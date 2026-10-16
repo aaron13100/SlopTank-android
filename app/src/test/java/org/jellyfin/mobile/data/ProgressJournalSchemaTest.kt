@@ -3,17 +3,9 @@ package org.jellyfin.mobile.data
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import java.io.File
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.SQLException
 
 /**
@@ -26,40 +18,13 @@ class ProgressJournalSchemaTest {
     @AfterEach
     fun close() = connections.forEach(Connection::close)
 
-    private fun open(): Connection = DriverManager.getConnection("jdbc:sqlite::memory:").also { db ->
-        connections += db
-        db.sql("PRAGMA foreign_keys = ON")
-    }
-
-    private fun schema(version: Int): JsonObject {
-        val file = File("schemas/org.jellyfin.mobile.data.JellyfinDatabase/$version.json")
-        return Json.parseToJsonElement(file.readText()).jsonObject.getValue("database").jsonObject
-    }
-
-    /** Creates the tables and indices of an exported schema, as Room does on a fresh install. */
-    private fun Connection.create(version: Int) {
-        for (entity in schema(version).getValue("entities").jsonArray.map { it.jsonObject }) {
-            val table = entity.getValue("tableName").jsonPrimitive.content
-            val statements = listOf(entity.getValue("createSql")) +
-                (entity["indices"] as JsonArray? ?: JsonArray(emptyList())).map { it.jsonObject.getValue("createSql") }
-            statements.forEach { sql(it.jsonPrimitive.content.replace("\${TABLE_NAME}", table)) }
-        }
-    }
-
-    private fun Connection.sql(sql: String) = createStatement().use { it.execute(sql) }
-
-    private fun Connection.rows(sql: String): List<List<String?>> = createStatement().use { statement ->
-        statement.executeQuery(sql).use { result ->
-            val columns = result.metaData.columnCount
-            buildList { while (result.next()) add((1..columns).map { result.getString(it) }) }
-        }
-    }
+    private fun open(): Connection = openSqlite().also { connections += it }
 
     private fun Connection.journalIds() = rows("SELECT download_id FROM offline_progress ORDER BY download_id")
         .map { it.single() }
 
     private fun Connection.purge(downloadId: Long) =
-        sql(ProgressJournalSchema.PURGE_IF_DETACHED.replace(":downloadId", downloadId.toString()))
+        sql(ProgressJournalSchema.PURGE_IF_DETACHED.bind("downloadId" to downloadId))
 
     private fun Connection.seed() {
         sql("INSERT INTO server (id, hostname, last_used_timestamp) VALUES (1, 'http://server', 0)")

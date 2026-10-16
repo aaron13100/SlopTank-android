@@ -11,12 +11,11 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import okhttp3.OkHttpClient
 import org.jellyfin.mobile.app.ApiClientController
+import org.jellyfin.mobile.data.JellyfinDatabase
 import org.jellyfin.mobile.downloads.CatalogRefresher
 import org.jellyfin.sdk.api.client.util.AuthorizationHeaderBuilder
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import timber.log.Timber
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -27,6 +26,7 @@ class ProgressSyncWorker(
     context: Context,
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters), KoinComponent {
+    private val database by inject<JellyfinDatabase>()
     private val store by inject<RoomProgressStore>()
     private val reconciler by inject<ProgressReconciler>()
     private val apiFactory by inject<ProgressApiFactory>()
@@ -34,24 +34,17 @@ class ProgressSyncWorker(
     private val apiClientController by inject<ApiClientController>()
 
     override suspend fun doWork(): Result {
-        var retry = false
-        for ((serverId, userId) in store.accounts()) {
-            // A logged-out or removed account keeps its journal until it signs in again.
-            val api = apiFactory.create(serverId, userId) ?: continue
-            apiClientController.getApiClientOrNull(
-                serverId,
-                userId
-            )?.let { catalogRefresher.refresh(serverId, userId, it) }
-            try {
-                val summary = reconciler.reconcile(serverId, userId, api)
-                Timber.i("Progress sync for account %d/%d: %s", serverId, userId, summary)
-            } catch (e: ProgressAuthException) {
-                // Expired credentials: keep the journal; the next sign-in schedules another sync.
-                Timber.w(e, "Progress sync for account %d/%d needs a new sign-in", serverId, userId)
-            } catch (e: IOException) {
-                Timber.w(e, "Progress sync for account %d/%d will be retried", serverId, userId)
-                retry = true
-            }
+        val sync = ProgressSync(
+            store = store,
+            reconciler = reconciler,
+            signedInAccounts = {
+                database.userDao.getSignedIn().map { SyncAccount(it.serverId, it.id, it.userId) }
+            },
+            apiFor = apiFactory::create,
+        )
+        val retry = sync.run { serverId, userId ->
+            apiClientController.getApiClientOrNull(serverId, userId)
+                ?.let { catalogRefresher.refresh(serverId, userId, it) }
         }
         return if (retry) Result.retry() else Result.success()
     }

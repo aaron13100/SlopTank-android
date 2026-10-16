@@ -7,6 +7,7 @@ import androidx.room.Query
 import org.jellyfin.mobile.data.ProgressJournalSchema
 import org.jellyfin.mobile.data.entity.OfflineProgressEntity
 import org.jellyfin.mobile.data.entity.ProgressSequenceEntity
+import java.util.UUID
 
 @Dao
 interface ProgressDao {
@@ -29,8 +30,16 @@ interface ProgressDao {
     @Query("SELECT DISTINCT server_id, user_id FROM offline_progress")
     suspend fun getAccounts(): List<AccountKey>
 
-    @Query("SELECT last_sequence FROM progress_sequence WHERE server_id = :serverId AND user_id = :userId")
-    suspend fun getLastSequence(serverId: Long, userId: Long): Long?
+    /** The last sequence of the account, or of any account of the same server-side user and server. */
+    @Query(ProgressJournalSchema.LAST_SEQUENCE)
+    suspend fun getLastSequence(serverId: Long, userId: Long, serverIdentity: String?, accountUserId: UUID?): Long?
+
+    @Query(ProgressJournalSchema.FILL_ACCOUNT_USER)
+    suspend fun fillAccountUser(serverId: Long, userId: Long, accountUserId: UUID): Int
+
+    /** Moves entries kept from a removed or signed-out account of the same user and server; see the SQL. */
+    @Query(ProgressJournalSchema.ADOPT_ENTRIES)
+    suspend fun adoptEntries(serverId: Long, userId: Long, accountUserId: UUID, serverIdentity: String): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setLastSequence(entity: ProgressSequenceEntity)

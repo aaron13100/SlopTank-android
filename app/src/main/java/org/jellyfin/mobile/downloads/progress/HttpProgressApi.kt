@@ -29,6 +29,13 @@ class HttpProgressApi(
 ) : ProgressApi {
     private val baseUrl = baseUrl.trimEnd('/')
 
+    override suspend fun serverIdentity(): String = withContext(Dispatchers.IO) {
+        execute(request("/System/Info/Public").get().build()).use { response ->
+            if (response.code != HTTP_OK) throw IOException("Server info request answered HTTP ${response.code}")
+            decode<PublicInfoDto>(response).id.ifEmpty { throw IOException("Server info without an id") }
+        }
+    }
+
     override suspend fun baseline(itemId: UUID): BaselineResult = withContext(Dispatchers.IO) {
         execute(request("/UserItems/$itemId/PlaybackProgress").get().build()).use { response ->
             when (response.code) {
@@ -86,6 +93,9 @@ class HttpProgressApi(
             throw IOException("Unreadable progress response", e)
         }
     }
+
+    @Serializable
+    private data class PublicInfoDto(@SerialName("Id") val id: String = "")
 
     @Serializable
     private data class StateDto(

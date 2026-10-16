@@ -44,4 +44,48 @@ object ProgressJournalSchema {
             "ON `offline_progress` (`server_id`, `user_id`)",
         KEEP_UNSYNCED_TRIGGER,
     )
+
+    /** The server-side user of the stored account a row of [table] belongs to. */
+    private fun accountUser(table: String) =
+        "(SELECT `user_id` FROM `user` WHERE `user`.`id` = `$table`.`user_id` " +
+            "AND `user`.`server_id` = `$table`.`server_id`)"
+
+    /**
+     * Version 9 labels journal entries and sequence counters with the server-side user, and counters with the
+     * server identity, so kept entries can move to the account that signs in again after a server was removed.
+     */
+    val MIGRATION_8_9 = listOf(
+        "ALTER TABLE `offline_progress` ADD COLUMN `account_user_id` TEXT",
+        "UPDATE `offline_progress` SET `account_user_id` = " + accountUser("offline_progress"),
+        "ALTER TABLE `progress_sequence` ADD COLUMN `server_identity` TEXT",
+        "ALTER TABLE `progress_sequence` ADD COLUMN `account_user_id` TEXT",
+        "UPDATE `progress_sequence` SET `account_user_id` = " + accountUser("progress_sequence") + ", " +
+            "`server_identity` = (SELECT `server_identity` FROM `offline_progress` " +
+            "WHERE `offline_progress`.`server_id` = `progress_sequence`.`server_id` " +
+            "AND `offline_progress`.`user_id` = `progress_sequence`.`user_id` " +
+            "AND `server_identity` IS NOT NULL LIMIT 1)",
+    )
+
+    /** Labels the account's own entries that do not know their server-side user yet. */
+    const val FILL_ACCOUNT_USER = "UPDATE offline_progress SET account_user_id = :accountUserId " +
+        "WHERE server_id = :serverId AND user_id = :userId AND account_user_id IS NULL"
+
+    /**
+     * Moves entries of the same server-side user and server (or not yet baselined, so of no known server) to the
+     * signed-in account, but only from accounts that can no longer sync them: removed or signed out.
+     */
+    const val ADOPT_ENTRIES = "UPDATE offline_progress SET server_id = :serverId, user_id = :userId " +
+        "WHERE account_user_id = :accountUserId " +
+        "AND (server_identity = :serverIdentity OR server_identity IS NULL) " +
+        "AND NOT (server_id = :serverId AND user_id = :userId) " +
+        "AND NOT EXISTS (SELECT 1 FROM user WHERE user.id = offline_progress.user_id " +
+        "AND user.server_id = offline_progress.server_id AND user.access_token IS NOT NULL)"
+
+    /**
+     * The highest sequence used by this account, or by any account of the same server-side user and server on
+     * this device: the server's sequences are per user and device, so a re-added account must continue them.
+     */
+    const val LAST_SEQUENCE = "SELECT MAX(last_sequence) FROM progress_sequence " +
+        "WHERE (server_id = :serverId AND user_id = :userId) " +
+        "OR (server_identity = :serverIdentity AND account_user_id = :accountUserId)"
 }

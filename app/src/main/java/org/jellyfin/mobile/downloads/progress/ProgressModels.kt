@@ -61,6 +61,8 @@ data class ProgressEntry(
     val dirty: Boolean = false,
     val frozen: FrozenOperation? = null,
     val state: SyncState = SyncState.CLEAN,
+    /** The server-side user the entry belongs to; with [serverIdentity] it survives a change of local ids. */
+    val accountUserId: UUID? = null,
 ) {
     /** Nothing local is waiting: the server acknowledged it, or a conflict was resolved in its favour. */
     val isSettled: Boolean
@@ -94,6 +96,9 @@ sealed interface ApplyResult {
 
 /** The server boundary. Implementations throw [java.io.IOException] for transient failures. */
 interface ProgressApi {
+    /** The server's own id (the same one progress states carry). */
+    suspend fun serverIdentity(): String
+
     suspend fun baseline(itemId: UUID): BaselineResult
 
     suspend fun apply(itemId: UUID, serverIdentity: String, operation: FrozenOperation): ApplyResult

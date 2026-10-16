@@ -47,6 +47,10 @@ interface UserDao {
     @Query("SELECT * FROM $TABLE_NAME WHERE $ID = :id")
     fun getUser(id: Long): UserEntity?
 
+    /** Every stored account that is signed in. */
+    @Query("SELECT * FROM $TABLE_NAME WHERE $ACCESS_TOKEN IS NOT NULL")
+    suspend fun getSignedIn(): List<UserEntity>
+
     @Query("SELECT * FROM $TABLE_NAME WHERE $SERVER_ID = :serverId")
     fun getAllForServer(serverId: Long): List<UserEntity>
 

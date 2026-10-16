@@ -13,7 +13,9 @@ interface ProgressStore {
 
     /**
      * Like [update], but also allocates the account's next operation sequence in the same transaction. The
-     * sequence is consumed only if [transform] returns a new entry.
+     * sequence is consumed only if [transform] returns a new entry. It follows the highest sequence used on this
+     * device by any account of the entry's server and server-side user, because the server counts sequences per
+     * user and device and a re-added account must never reuse one.
      */
     suspend fun updateWithSequence(downloadId: Long, transform: (ProgressEntry, Long) -> ProgressEntry?): ProgressEntry?
 
@@ -23,6 +25,17 @@ interface ProgressStore {
      * the entry was deleted.
      */
     suspend fun purgeIfDetached(downloadId: Long): Boolean
+
+    /** Every account (local server and user id) that has journal entries. */
+    suspend fun accounts(): List<Pair<Long, Long>>
+
+    /**
+     * Gives [account] the entries of the same server ([serverIdentity]) and server-side user that were kept under
+     * other local ids no longer able to sync (the server was removed and added back, or the user signed out and
+     * in through another address), and labels its own unlabelled entries with its server-side user. Returns how
+     * many entries moved; their operations keep their sequences, see [updateWithSequence].
+     */
+    suspend fun adopt(account: SyncAccount, serverIdentity: String): Int
 }
 
 data class ReconcileSummary(

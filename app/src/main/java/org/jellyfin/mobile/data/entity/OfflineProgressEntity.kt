@@ -38,4 +38,5 @@ data class OfflineProgressEntity(
     @ColumnInfo(name = "op_play_count_increment") val operationPlayCountIncrement: Int?,
     @ColumnInfo(name = "op_last_played") val operationLastPlayed: String?,
     @ColumnInfo(name = "state") val state: String,
+    @ColumnInfo(name = "account_user_id") val accountUserId: UUID? = null,
 )

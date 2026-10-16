@@ -37,7 +37,7 @@ import java.util.UUID
         OfflineProgressEntity::class,
         ProgressSequenceEntity::class,
     ],
-    version = 8,
+    version = 9,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = JellyfinDatabase.MigrateV4::class),
@@ -123,10 +123,18 @@ abstract class JellyfinDatabase : RoomDatabase() {
         private const val SCHEMA_V6 = 6
         private const val SCHEMA_V7 = 7
         private const val SCHEMA_V8 = 8
+        private const val SCHEMA_V9 = 9
 
         val MIGRATION_7_8 = object : Migration(SCHEMA_V7, SCHEMA_V8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 ProgressJournalSchema.MIGRATION_7_8.forEach(db::execSQL)
+            }
+        }
+
+        /** Version 9: journal entries and sequence counters remember their server-side user and server. */
+        val MIGRATION_8_9 = object : Migration(SCHEMA_V8, SCHEMA_V9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                ProgressJournalSchema.MIGRATION_8_9.forEach(db::execSQL)
             }
         }
 
