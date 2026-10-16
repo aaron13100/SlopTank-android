@@ -57,7 +57,8 @@ class AppPreferences(context: Context) {
         }
 
     var downloadMethod: DownloadMethod
-        get() = DownloadMethod.fromInt(sharedPreferences.getInt(Constants.PREF_DOWNLOAD_METHOD, -1)) ?: DownloadMethod.DEFAULT
+        get() = DownloadMethod.fromInt(sharedPreferences.getInt(Constants.PREF_DOWNLOAD_METHOD, -1))
+            ?: DownloadMethod.DEFAULT
         set(value) {
             sharedPreferences.edit {
                 putInt(Constants.PREF_DOWNLOAD_METHOD, value.intValue)

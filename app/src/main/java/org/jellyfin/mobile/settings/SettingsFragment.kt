@@ -123,7 +123,8 @@ class SettingsFragment : Fragment(), BackPressInterceptor {
             defaultOnSelectionChange { selection ->
                 startLandscapeVideoInLandscapePreference.enabled = selection == VideoPlayerType.EXO_PLAYER
                 swipeGesturesPreference.enabled = selection == VideoPlayerType.EXO_PLAYER
-                rememberBrightnessPreference.enabled = selection == VideoPlayerType.EXO_PLAYER && swipeGesturesPreference.checked
+                rememberBrightnessPreference.enabled =
+                    selection == VideoPlayerType.EXO_PLAYER && swipeGesturesPreference.checked
                 pressSpeedUpPreference.enabled = selection == VideoPlayerType.EXO_PLAYER
                 backgroundAudioPreference.enabled = selection == VideoPlayerType.EXO_PLAYER
                 horizontalGesturePreference.enabled = selection == VideoPlayerType.EXO_PLAYER
@@ -132,7 +133,9 @@ class SettingsFragment : Fragment(), BackPressInterceptor {
                 externalPlayerChoicePreference.enabled = selection == VideoPlayerType.EXTERNAL_PLAYER
             }
         }
-        startLandscapeVideoInLandscapePreference = checkBox(Constants.PREF_EXOPLAYER_START_LANDSCAPE_VIDEO_IN_LANDSCAPE) {
+        startLandscapeVideoInLandscapePreference = checkBox(
+            Constants.PREF_EXOPLAYER_START_LANDSCAPE_VIDEO_IN_LANDSCAPE,
+        ) {
             titleRes = R.string.pref_exoplayer_start_landscape_video_in_landscape
             enabled = appPreferences.videoPlayerType == VideoPlayerType.EXO_PLAYER
         }
@@ -146,7 +149,8 @@ class SettingsFragment : Fragment(), BackPressInterceptor {
         }
         rememberBrightnessPreference = checkBox(Constants.PREF_EXOPLAYER_REMEMBER_BRIGHTNESS) {
             titleRes = R.string.pref_exoplayer_remember_brightness
-            enabled = appPreferences.videoPlayerType == VideoPlayerType.EXO_PLAYER && appPreferences.exoPlayerAllowSwipeGestures
+            enabled = appPreferences.videoPlayerType == VideoPlayerType.EXO_PLAYER &&
+                appPreferences.exoPlayerAllowSwipeGestures
             defaultOnCheckedChange { checked ->
                 if (!checked) appPreferences.exoPlayerBrightness = BRIGHTNESS_OVERRIDE_NONE
             }

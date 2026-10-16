@@ -36,21 +36,34 @@ val SearchLibraryPage = { context: Context, api: ApiClient ->
     libraryPage<LibraryRoute.Search>(grid = true) { route, offset, limit ->
         if (route.query.isNullOrBlank()) return@libraryPage emptyList()
 
-        val (playlists, albums, artists, audioBooks) = listOf(
-            search(api, route.query, setOf(BaseItemKind.PLAYLIST)) to { item: BaseItemDto ->
-                LibraryPageElement.baseItem(api, item, action = LibraryItemAction.Navigate(LibraryRoute.Playlist(item.id)))
-            },
-            search(api, route.query, setOf(BaseItemKind.MUSIC_ALBUM)) to { item: BaseItemDto ->
-                LibraryPageElement.baseItem(api, item, action = LibraryItemAction.Navigate(LibraryRoute.Album(item.id)))
-            },
-            search(api, route.query, setOf(BaseItemKind.MUSIC_ARTIST)) to { item: BaseItemDto ->
-                LibraryPageElement.baseItem(api, item, action = LibraryItemAction.Navigate(LibraryRoute.Artist(item.id)))
-            },
-            search(api, route.query, setOf(BaseItemKind.AUDIO_BOOK)) to { item: BaseItemDto ->
-                LibraryPageElement.baseItem(api, item, action = LibraryItemAction.Play(item))
-            },
-        ).map { (deferred, mapper) ->
-            deferred.await().content.items.map(mapper)
+        val playlistsResult = search(api, route.query, setOf(BaseItemKind.PLAYLIST))
+        val albumsResult = search(api, route.query, setOf(BaseItemKind.MUSIC_ALBUM))
+        val artistsResult = search(api, route.query, setOf(BaseItemKind.MUSIC_ARTIST))
+        val audioBooksResult = search(api, route.query, setOf(BaseItemKind.AUDIO_BOOK))
+
+        val playlists = playlistsResult.await().content.items.map { item: BaseItemDto ->
+            LibraryPageElement.baseItem(
+                api = api,
+                item = item,
+                action = LibraryItemAction.Navigate(LibraryRoute.Playlist(item.id)),
+            )
+        }
+        val albums = albumsResult.await().content.items.map { item: BaseItemDto ->
+            LibraryPageElement.baseItem(
+                api = api,
+                item = item,
+                action = LibraryItemAction.Navigate(LibraryRoute.Album(item.id)),
+            )
+        }
+        val artists = artistsResult.await().content.items.map { item: BaseItemDto ->
+            LibraryPageElement.baseItem(
+                api = api,
+                item = item,
+                action = LibraryItemAction.Navigate(LibraryRoute.Artist(item.id)),
+            )
+        }
+        val audioBooks = audioBooksResult.await().content.items.map { item: BaseItemDto ->
+            LibraryPageElement.baseItem(api, item, action = LibraryItemAction.Play(item))
         }
 
         listOf(

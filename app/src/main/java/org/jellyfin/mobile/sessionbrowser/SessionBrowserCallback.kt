@@ -145,7 +145,10 @@ class SessionBrowserCallback(
         }
     }
 
-    private fun createPageMediaItem(route: LibraryRoute, page: LibraryPage<*> = route.page!!) = MediaItem.Builder().apply {
+    private fun createPageMediaItem(
+        route: LibraryRoute,
+        page: LibraryPage<*> = route.page!!,
+    ) = MediaItem.Builder().apply {
         val extras = Bundle()
         val contentStyle = when (page.grid) {
             true -> MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
@@ -348,6 +351,48 @@ class SessionBrowserCallback(
         }
     }
 
+    private suspend fun expandSearchRequest(firstItem: MediaItem): List<MediaItem> {
+        val search = firstItem.requestMetadata.searchQuery
+        Timber.d("Search requested $search")
+
+        val route = if (search.isNullOrEmpty()) {
+            LibraryRoute.Suggested
+        } else {
+            LibraryRoute.Search(search)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val searchResults = (route.page as? LibraryPage<LibraryRoute>)
+            ?.getContent(route, 0, MAX_PAGE_SIZE)
+            ?.toMediaItems(route)
+            .orEmpty()
+
+        // Android Auto does not support session error reporting
+        // but Google Play requires feedback on all search requests
+        // so fallback to random item playback if no search results are found
+        if (searchResults.isEmpty()) {
+            @Suppress("UNCHECKED_CAST")
+            val suggestedItems = (LibraryRoute.Suggested.page as LibraryPage<LibraryRoute>)
+                .getContent(LibraryRoute.Suggested, 0, MAX_PAGE_SIZE)
+                .toMediaItems(route)
+            return suggestedItems
+        }
+
+        return searchResults
+    }
+
+    private suspend fun expandLibraryItem(libraryMediaId: LibraryMediaId.Item, startIndex: Int): List<MediaItem> {
+        Timber.d("Expanding item $libraryMediaId")
+        val page = libraryMediaId.route.page
+
+        @Suppress("UNCHECKED_CAST")
+        val expandedItems = (page as? LibraryPage<LibraryRoute>)
+            ?.getContent(libraryMediaId.route, startIndex, MAX_PAGE_SIZE)
+            ?.toMediaItems(libraryMediaId.route)
+            .orEmpty()
+        return expandedItems
+    }
+
     override fun onSetMediaItems(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
@@ -372,50 +417,14 @@ class SessionBrowserCallback(
             when {
                 // Play via search
                 firstItem.mediaId == MediaItem.DEFAULT_MEDIA_ID && firstItem.requestMetadata.mediaUri == null -> {
-                    val search = firstItem.requestMetadata.searchQuery
-                    Timber.d("Search requested $search")
-
-                    val route = if (search.isNullOrEmpty()) {
-                        LibraryRoute.Suggested
-                    } else {
-                        LibraryRoute.Search(search)
-                    }
-
-                    @Suppress("UNCHECKED_CAST")
-                    expandedItems = (route.page as? LibraryPage<LibraryRoute>)
-                        ?.getContent(route, 0, MAX_PAGE_SIZE)
-                        ?.toMediaItems(route)
-                        .orEmpty()
-
-                    // Android Auto does not support session error reporting
-                    // but Google Play requires feedback on all search requests
-                    // so fallback to random item playback if no search results are found
-                    if (expandedItems.isEmpty()) {
-                        @Suppress("UNCHECKED_CAST")
-                        expandedItems = (LibraryRoute.Suggested.page as LibraryPage<LibraryRoute>)
-                            .getContent(LibraryRoute.Suggested, 0, MAX_PAGE_SIZE)
-                            .toMediaItems(route)
-                    }
-
+                    expandedItems = expandSearchRequest(firstItem)
                     newStartIndex = 0
                 }
 
                 // Expand media item to full playlist
                 libraryMediaId is LibraryMediaId.Item -> {
-                    Timber.d("Expanding item $libraryMediaId")
-                    val page = libraryMediaId.route.page
-
-                    @Suppress("UNCHECKED_CAST")
-                    expandedItems = (page as? LibraryPage<LibraryRoute>)
-                        ?.getContent(libraryMediaId.route, startIndex, MAX_PAGE_SIZE)
-                        ?.toMediaItems(libraryMediaId.route)
-                        .orEmpty()
-
-                    newStartIndex = expandedItems
-                        .indexOfFirst {
-                            (Json.decodeFromString<LibraryMediaId>(it.mediaId) as? LibraryMediaId.Item)?.itemId == libraryMediaId.itemId
-                        }
-                        .coerceAtLeast(0)
+                    expandedItems = expandLibraryItem(libraryMediaId, startIndex)
+                    newStartIndex = expandedItems.indexOfLibraryItem(libraryMediaId)
                 }
             }
         }
@@ -442,3 +451,12 @@ class SessionBrowserCallback(
         MediaSession.MediaItemsWithStartPosition(expandedItems, newStartIndex, newStartPositionMs)
     }
 }
+
+/**
+ * Returns the index of the media item matching [libraryMediaId], or 0 if there is none.
+ */
+private fun List<MediaItem>.indexOfLibraryItem(libraryMediaId: LibraryMediaId.Item): Int =
+    indexOfFirst { mediaItem ->
+        val itemMediaId = Json.decodeFromString<LibraryMediaId>(mediaItem.mediaId) as? LibraryMediaId.Item
+        itemMediaId?.itemId == libraryMediaId.itemId
+    }.coerceAtLeast(0)

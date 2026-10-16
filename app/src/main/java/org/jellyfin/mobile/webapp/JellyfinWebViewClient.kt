@@ -60,7 +60,8 @@ abstract class JellyfinWebViewClient(
                         ) { result ->
                             try {
                                 continuation.resume(Json.parseToJsonElement(result).jsonObject)
-                            } catch (e: Exception) {
+                            } catch (e: IllegalArgumentException) {
+                                // Thrown on invalid JSON (SerializationException) or a non-object element
                                 val message = "Failed to extract credentials"
                                 Timber.e(e, message)
                                 continuation.resumeWithException(Exception(message, e))

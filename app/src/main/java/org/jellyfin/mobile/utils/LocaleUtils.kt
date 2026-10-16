@@ -18,7 +18,9 @@ suspend fun WebView.initLocale(userId: UUID) {
         evaluateJavascript("window.localStorage.getItem('$flatUserId-language')") { result ->
             try {
                 continuation.resume(Json.decodeFromString<String?>(result))
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
+                // Thrown by kotlinx.serialization (SerializationException is a subclass) on invalid JSON
+                Timber.w(e, "Failed to decode user language setting")
                 continuation.resume(null)
             }
         }

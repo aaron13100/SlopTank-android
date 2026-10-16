@@ -36,7 +36,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.jellyfin.mobile.MainActivity
 import org.jellyfin.mobile.R
 import org.jellyfin.mobile.app.AppPreferences
 import org.jellyfin.mobile.utils.AndroidVersion
@@ -105,7 +104,9 @@ class RemotePlayerService : Service(), CoroutineScope {
                     val extras = intent.extras ?: return
                     val state = extras.getInt(BluetoothA2dp.EXTRA_STATE)
                     val previousState = extras.getInt(BluetoothA2dp.EXTRA_PREVIOUS_STATE)
-                    if ((state == BluetoothA2dp.STATE_DISCONNECTED || state == BluetoothA2dp.STATE_DISCONNECTING) && previousState == BluetoothA2dp.STATE_CONNECTED) {
+                    val isDisconnecting = state == BluetoothA2dp.STATE_DISCONNECTED ||
+                        state == BluetoothA2dp.STATE_DISCONNECTING
+                    if (isDisconnecting && previousState == BluetoothA2dp.STATE_CONNECTED) {
                         webappFunctionChannel.callPlaybackManagerAction(PLAYBACK_MANAGER_COMMAND_PAUSE)
                     }
                 }
@@ -114,7 +115,10 @@ class RemotePlayerService : Service(), CoroutineScope {
                     val extras = intent.extras ?: return
                     val state = extras.getInt(BluetoothHeadset.EXTRA_STATE)
                     val previousState = extras.getInt(BluetoothHeadset.EXTRA_PREVIOUS_STATE)
-                    if (state == BluetoothHeadset.STATE_AUDIO_DISCONNECTED && previousState == BluetoothHeadset.STATE_AUDIO_CONNECTED) {
+                    if (
+                        state == BluetoothHeadset.STATE_AUDIO_DISCONNECTED &&
+                        previousState == BluetoothHeadset.STATE_AUDIO_CONNECTED
+                    ) {
                         webappFunctionChannel.callPlaybackManagerAction(PLAYBACK_MANAGER_COMMAND_PAUSE)
                     }
                 }
@@ -262,9 +266,7 @@ class RemotePlayerService : Service(), CoroutineScope {
 
             val style = Notification.MediaStyle().apply {
                 setMediaSession(mediaSession.sessionToken)
-                @Suppress("MagicNumber")
-                val compactActions = if (supportsNativeSeek) intArrayOf(0, 1, 2) else intArrayOf(0, 2, 4)
-                setShowActionsInCompactView(*compactActions)
+                setRemotePlayerCompactActions(supportsNativeSeek)
             }
 
             @Suppress("DEPRECATION")
@@ -292,8 +294,8 @@ class RemotePlayerService : Service(), CoroutineScope {
                 setVisibility(Notification.VISIBILITY_PUBLIC)
                 // Swipe to dismiss if paused
                 setOngoing(!isPaused && !appPreferences.musicNotificationAlwaysDismissible)
-                setDeleteIntent(createDeleteIntent())
-                setContentIntent(createContentIntent())
+                setDeleteIntent(createRemotePlayerDeleteIntent())
+                setContentIntent(createRemotePlayerContentIntent())
 
                 // Set icons
                 setSmallIcon(R.drawable.ic_notification)
@@ -382,26 +384,6 @@ class RemotePlayerService : Service(), CoroutineScope {
         mediaSession!!.setPlaybackState(isPlaying, position, playbackActions)
     }
 
-    private fun createDeleteIntent(): PendingIntent {
-        val intent = Intent(applicationContext, RemotePlayerService::class.java).apply {
-            action = Constants.ACTION_STOP
-        }
-        return PendingIntent.getService(applicationContext, 1, intent, Constants.PENDING_INTENT_FLAGS)
-    }
-
-    private fun createContentIntent(): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            action = Constants.ACTION_SHOW_PLAYER
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        return PendingIntent.getActivity(
-            this,
-            Constants.REMOTE_PLAYER_CONTENT_INTENT_REQUEST_CODE,
-            intent,
-            Constants.PENDING_INTENT_FLAGS,
-        )
-    }
-
     private fun generateAction(icon: Int, @StringRes title: Int, intentAction: String): Notification.Action {
         val intent = Intent(applicationContext, RemotePlayerService::class.java).apply {
             action = intentAction
@@ -462,8 +444,11 @@ class RemotePlayerService : Service(), CoroutineScope {
                     }
 
                     override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
-                        val keyEvent = IntentCompat.getParcelableExtra(mediaButtonIntent, Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
-                            ?: return super.onMediaButtonEvent(mediaButtonIntent)
+                        val keyEvent = IntentCompat.getParcelableExtra(
+                            mediaButtonIntent,
+                            Intent.EXTRA_KEY_EVENT,
+                            KeyEvent::class.java,
+                        ) ?: return super.onMediaButtonEvent(mediaButtonIntent)
 
                         val command = when (keyEvent.keyCode) {
                             KeyEvent.KEYCODE_MEDIA_PLAY -> PLAYBACK_MANAGER_COMMAND_PLAY

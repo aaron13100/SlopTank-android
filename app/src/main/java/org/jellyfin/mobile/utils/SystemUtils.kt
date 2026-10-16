@@ -95,6 +95,7 @@ fun Activity.isAutoRotateOn() = Settings.System.getInt(contentResolver, ACCELERO
 fun PackageManager.isPackageInstalled(@ExternalPlayerPackage packageName: String) = try {
     packageName.isNotEmpty() && getApplicationInfo(packageName, 0).enabled
 } catch (e: PackageManager.NameNotFoundException) {
+    Timber.d(e, "Package %s is not installed", packageName)
     false
 }
 

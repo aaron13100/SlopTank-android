@@ -97,7 +97,8 @@ class ApiClientController(
     }
 
     fun getApiClient(server: Long, user: Long): ApiClient {
-        val serverUser = userDao.getServerUser(server, user) ?: error("Invalid server user combination (server=$server, user=$user)")
+        val serverUser = userDao.getServerUser(server, user)
+            ?: error("Invalid server user combination (server=$server, user=$user)")
 
         return jellyfin.createApi(
             baseUrl = serverUser.server.hostname,

@@ -65,7 +65,9 @@ class ConnectionHelper(
         val error = when {
             badServers.isNotEmpty() -> {
                 val count = badServers.size
-                val (unreachableServers, incompatibleServers) = badServers.partition { result -> result.systemInfo.getOrNull() == null }
+                val (unreachableServers, incompatibleServers) = badServers.partition { result ->
+                    result.systemInfo.getOrNull() == null
+                }
 
                 StringBuilder().apply {
                     append(context.resources.getQuantityString(R.plurals.connection_error_prefix, count, count))
