@@ -13,6 +13,7 @@ import okhttp3.Response
 import org.jellyfin.mobile.downloads.ContentRange
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.RandomAccessFile
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -57,27 +58,30 @@ class RangeDownloader(
     }
 
     suspend fun download(request: Request, listener: Listener): Result = withContext(Dispatchers.IO) {
-        var validator = request.validator
-        var knownTotal = request.knownTotal
+        var known = Resume(offset = 0, validator = request.validator, total = request.knownTotal)
         repeat(MAX_RESTARTS + 1) {
-            val offset = if (request.part.exists()) request.part.length() else 0L
+            val held = if (request.part.exists()) request.part.length() else 0L
             // Never resume without a way to prove the object is unchanged.
-            val resume = offset > 0 && validator != null && knownTotal > 0
-            if (offset > 0 && !resume) truncate(request.part, 0)
+            val resume = known.copy(offset = if (known.canResume(held)) held else 0L)
+            if (held > 0 && resume.offset == 0L) truncate(request.part, 0)
 
-            val outcome = execute(buildRequest(request, if (resume) offset else 0L, validator)).use { response ->
-                handle(response, request.part, if (resume) offset else 0L, validator, knownTotal, listener)
+            val outcome = execute(buildRequest(request, resume)).use { response ->
+                handle(response, request.part, resume, listener)
             }
             when (outcome) {
                 is Outcome.Done -> return@withContext outcome.result
                 Outcome.Restart -> {
                     truncate(request.part, 0)
-                    validator = null
-                    knownTotal = -1
+                    known = Resume(offset = 0, validator = null, total = -1)
                 }
             }
         }
         throw IOException("Server kept answering with an inconsistent range for ${request.url}")
+    }
+
+    /** What is known about the partial object: bytes held, its validator and its total size. */
+    private data class Resume(val offset: Long, val validator: String?, val total: Long) {
+        fun canResume(held: Long) = held > 0 && validator != null && total > 0
     }
 
     private sealed interface Outcome {
@@ -85,57 +89,47 @@ class RangeDownloader(
         data object Restart : Outcome
     }
 
-    private fun buildRequest(request: Request, offset: Long, validator: String?): okhttp3.Request =
+    private fun buildRequest(request: Request, resume: Resume): okhttp3.Request =
         okhttp3.Request.Builder().apply {
             url(request.url)
             request.headers.forEach { (name, value) -> header(name, value) }
-            if (offset > 0 && validator != null) {
-                header("Range", "bytes=$offset-")
-                header("If-Range", validator)
+            if (resume.offset > 0 && resume.validator != null) {
+                header("Range", "bytes=${resume.offset}-")
+                header("If-Range", resume.validator)
             }
         }.build()
 
-    private suspend fun handle(
-        response: Response,
-        part: File,
-        offset: Long,
-        validator: String?,
-        knownTotal: Long,
-        listener: Listener,
-    ): Outcome = when (response.code) {
-        HTTP_PARTIAL_CONTENT -> handlePartial(response, part, offset, validator, knownTotal, listener)
-        HTTP_OK -> handleFull(response, part, listener)
-        HTTP_RANGE_NOT_SATISFIABLE -> {
-            // Only "already complete" is acceptable: the announced total equals what we hold.
-            val total = response.header("Content-Range")?.substringAfter('/')?.toLongOrNull()
-            if (total != null && offset > 0 && total == offset && total == knownTotal) {
-                Outcome.Done(Result(total, validator))
-            } else {
-                Outcome.Restart
+    private suspend fun handle(response: Response, part: File, resume: Resume, listener: Listener): Outcome =
+        when (response.code) {
+            HTTP_PARTIAL_CONTENT -> handlePartial(response, part, resume, listener)
+            HTTP_OK -> handleFull(response, part, listener)
+            HTTP_RANGE_NOT_SATISFIABLE -> {
+                // Only "already complete" is acceptable: the announced total equals what we hold.
+                val total = response.header("Content-Range")?.substringAfter('/')?.toLongOrNull()
+                val complete = total != null && resume.offset > 0 && total == resume.offset
+                if (complete && total == resume.total) {
+                    Outcome.Done(
+                        Result(total, resume.validator)
+                    )
+                } else {
+                    Outcome.Restart
+                }
             }
+            HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> throw AuthExpiredException(response.code)
+            HTTP_NOT_FOUND, HTTP_GONE -> throw ServerItemGoneException(response.code)
+            else -> throw IOException("Unexpected HTTP ${response.code} for ${response.request.url}")
         }
-        HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> throw AuthExpiredException(response.code)
-        HTTP_NOT_FOUND, HTTP_GONE -> throw ServerItemGoneException(response.code)
-        else -> throw IOException("Unexpected HTTP ${response.code} for ${response.request.url}")
-    }
 
-    private suspend fun handlePartial(
-        response: Response,
-        part: File,
-        offset: Long,
-        validator: String?,
-        knownTotal: Long,
-        listener: Listener,
-    ): Outcome {
-        val range = response.header("Content-Range")?.let { runCatching { ContentRange.fromContentRangeHeader(it) }.getOrNull() }
+    private suspend fun handlePartial(response: Response, part: File, resume: Resume, listener: Listener): Outcome {
+        val range = response.header("Content-Range")
+            ?.let { runCatching { ContentRange.fromContentRangeHeader(it) }.getOrNull() }
         val responseValidator = validatorOf(response)
-        val sameObject = responseValidator == null || responseValidator == validator
-        if (offset <= 0 || range == null || range.start != offset || range.total != knownTotal || !sameObject) {
-            return Outcome.Restart
-        }
-        listener.onStart(range.total, validator)
-        write(response, part, offset, range.total, listener)
-        return Outcome.Done(Result(range.total, validator))
+        val sameObject = responseValidator == null || responseValidator == resume.validator
+        val rangeMatches = range != null && range.start == resume.offset && range.total == resume.total
+        if (resume.offset <= 0 || !rangeMatches || !sameObject) return Outcome.Restart
+        listener.onStart(resume.total, resume.validator)
+        write(response, part, resume.offset, resume.total, listener)
+        return Outcome.Done(Result(resume.total, resume.validator))
     }
 
     private suspend fun handleFull(response: Response, part: File, listener: Listener): Outcome {
@@ -150,45 +144,61 @@ class RangeDownloader(
 
     private suspend fun write(response: Response, part: File, offset: Long, total: Long, listener: Listener) {
         val body = response.body ?: throw IOException("Response has no body")
-        val expected = total - offset
-        part.parentFile?.let(storage::prepareDir)
-        storage.ensureSpaceFor(expected, part.parentFile ?: storage.root)
-
-        var written = 0L
-        RandomAccessFile(part, "rw").use { file ->
+        val dir = part.parentFile ?: storage.root
+        storage.prepareDir(dir)
+        storage.ensureSpaceFor(total - offset, dir)
+        val written = RandomAccessFile(part, "rw").use { file ->
             file.setLength(offset)
             file.seek(offset)
-            body.byteStream().use { input ->
-                val buffer = ByteArray(BUFFER_SIZE)
-                var sinceCheck = 0L
-                while (true) {
-                    currentCoroutineContext().ensureActive()
-                    val read = input.read(buffer)
-                    if (read == -1) break
-                    if (written + read > expected) throw IOException("Server sent more bytes than announced")
-                    try {
-                        file.write(buffer, 0, read)
-                    } catch (e: IOException) {
-                        val available = storage.availableBytes(part.parentFile ?: storage.root)
-                        if (available < expected - written) throw InsufficientStorageException(expected - written, available, e)
-                        throw e
-                    }
-                    written += read
-                    sinceCheck += read
-                    if (sinceCheck >= CHECK_INTERVAL_BYTES) {
-                        sinceCheck = 0
-                        listener.onProgress(offset + written, total)
-                        if (!listener.shouldContinue()) {
-                            file.fd.sync()
-                            throw DownloadInterruptedException()
-                        }
-                    }
-                }
-            }
+            val copied = body.byteStream().use { input -> copy(input, file, offset, total, listener) }
             file.fd.sync()
+            copied
         }
         listener.onProgress(offset + written, total)
-        if (written != expected) throw IOException("Connection closed after ${offset + written} of $total bytes")
+        if (written != total - offset) throw IOException("Connection closed after ${offset + written} of $total bytes")
+    }
+
+    /** Copies the body into [file], checking cancellation, space and the user's pause between chunks. */
+    private suspend fun copy(
+        input: InputStream,
+        file: RandomAccessFile,
+        offset: Long,
+        total: Long,
+        listener: Listener
+    ): Long {
+        val expected = total - offset
+        val buffer = ByteArray(BUFFER_SIZE)
+        var written = 0L
+        var sinceCheck = 0L
+        var read = input.read(buffer)
+        while (read != -1) {
+            currentCoroutineContext().ensureActive()
+            if (written + read > expected) throw IOException("Server sent more bytes than announced")
+            writeChunk(file, buffer, read, expected - written)
+            written += read
+            sinceCheck += read
+            if (sinceCheck >= CHECK_INTERVAL_BYTES) {
+                sinceCheck = 0
+                listener.onProgress(offset + written, total)
+                if (!listener.shouldContinue()) {
+                    file.fd.sync()
+                    throw DownloadInterruptedException()
+                }
+            }
+            read = input.read(buffer)
+        }
+        return written
+    }
+
+    /** Writes one chunk, reporting a full disk as [InsufficientStorageException] rather than a network error. */
+    private fun writeChunk(file: RandomAccessFile, buffer: ByteArray, count: Int, remaining: Long) {
+        try {
+            file.write(buffer, 0, count)
+        } catch (e: IOException) {
+            val available = storage.availableBytes(storage.root)
+            if (available < remaining) throw InsufficientStorageException(remaining, available, e)
+            throw e
+        }
     }
 
     private fun truncate(part: File, length: Long) {

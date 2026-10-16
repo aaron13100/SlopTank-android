@@ -51,7 +51,7 @@ class NotificationProgressCallback(
     private val notificationManager: NotificationManager,
     private val downloadId: Long,
     private val name: String,
-) : FileDownloader.ProgressCallback {
+) {
     private var lastProgress = -1
 
     private val builder by lazy {
@@ -66,21 +66,21 @@ class NotificationProgressCallback(
             val cancelPendingIntent = PendingIntentCompat.getBroadcast(
                 context,
                 0,
-                DownloadBroadcastReceiver.cancelDownloadIntent(context, downloadId),
+                DownloadBroadcastReceiver.pauseDownloadIntent(context, downloadId),
                 0,
                 false,
             )
             addAction(
                 NotificationCompat.Action.Builder(
                     null,
-                    context.getString(R.string.download_cancel),
+                    context.getString(R.string.download_pause),
                     cancelPendingIntent,
                 ).build(),
             )
         }
     }
 
-    override suspend fun onProgress(downloaded: Long, total: Long) {
+    fun onProgress(downloaded: Long, total: Long) {
         val progress = (downloaded.toFloat() / (total.toFloat()) * PROGRESS_MAX).toInt().coerceIn(0, PROGRESS_MAX)
 
         if (lastProgress == progress) return
@@ -105,7 +105,7 @@ class NotificationProgressCallback(
         notificationManager.notify(DownloadNotificationManager.NOTIFICATION_ID, builder.build())
     }
 
-    suspend fun onEnd() = onProgress(Long.MAX_VALUE, Long.MAX_VALUE)
+    fun onEnd() = onProgress(Long.MAX_VALUE, Long.MAX_VALUE)
 
     private companion object {
         const val PROGRESS_MAX = 100

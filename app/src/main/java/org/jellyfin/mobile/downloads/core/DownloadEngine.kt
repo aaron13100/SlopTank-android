@@ -95,22 +95,33 @@ class DownloadEngine(
     private val downloader: RangeDownloader,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun run(job: DownloadJob): EngineOutcome {
+    /** The failure or interruption that ended the most recent [run], for logging. */
+    @Volatile
+    var lastFailure: Throwable? = null
+        private set
+
+    suspend fun run(
+        job: DownloadJob,
+        onProgress: suspend (downloaded: Long, total: Long) -> Unit = { _, _ -> }
+    ): EngineOutcome {
         val id = job.downloadId
         if (!records.transitionStatus(id, DownloadStatus.QUEUED, DownloadStatus.DOWNLOADING, null)) {
             // Paused, cancelled, removed or already complete since it was queued.
             return EngineOutcome.INTERRUPTED
         }
+        lastFailure = null
         return try {
             storage.prepareDir(job.itemDir)
             for (planned in job.files) {
                 if (records.downloadStatus(id) != DownloadStatus.DOWNLOADING) throw DownloadInterruptedException()
-                downloadFile(job, planned)
+                downloadFile(job, planned, onProgress)
             }
             if (records.completeDownload(id)) EngineOutcome.COMPLETED else EngineOutcome.INTERRUPTED
         } catch (e: DownloadInterruptedException) {
+            lastFailure = e
             EngineOutcome.INTERRUPTED
         } catch (e: PermanentDownloadException) {
+            lastFailure = e
             records.transitionStatus(id, DownloadStatus.DOWNLOADING, DownloadStatus.ERROR, e.reason)
             EngineOutcome.FAILED
         } catch (e: CancellationException) {
@@ -119,12 +130,17 @@ class DownloadEngine(
             }
             throw e
         } catch (e: IOException) {
+            lastFailure = e
             records.transitionStatus(id, DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED, DownloadErrorReason.NETWORK)
             EngineOutcome.RETRY_LATER
         }
     }
 
-    private suspend fun downloadFile(job: DownloadJob, planned: PlannedFile) {
+    private suspend fun downloadFile(
+        job: DownloadJob,
+        planned: PlannedFile,
+        onProgress: suspend (Long, Long) -> Unit,
+    ) {
         var record = records.fileRecord(job.downloadId, planned)
         val finalFile = storage.finalFile(job.itemDir, planned.fileName)
         val part = storage.partFile(finalFile)
@@ -151,7 +167,7 @@ class DownloadEngine(
                 validator = record.validator,
                 knownTotal = record.totalBytes,
             ),
-            ProgressListener(job.downloadId, record.id),
+            ProgressListener(job.downloadId, record.id, onProgress.takeIf { planned.type == DownloadFileType.ITEM }),
         )
 
         val validation = MediaValidator.validate(part, planned.type, result.total)
@@ -172,6 +188,7 @@ class DownloadEngine(
     private inner class ProgressListener(
         private val downloadId: Long,
         private val fileId: Long,
+        private val observer: (suspend (Long, Long) -> Unit)?,
     ) : RangeDownloader.Listener {
         private var lastPersisted = 0L
 
@@ -180,6 +197,7 @@ class DownloadEngine(
         }
 
         override suspend fun onProgress(downloaded: Long, total: Long) {
+            observer?.invoke(downloaded, total)
             val now = clock()
             if (downloaded == total || now - lastPersisted >= PROGRESS_PERSIST_INTERVAL_MS) {
                 lastPersisted = now

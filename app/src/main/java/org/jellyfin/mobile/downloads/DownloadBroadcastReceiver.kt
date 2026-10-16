@@ -12,14 +12,14 @@ import org.koin.core.component.inject
 
 class DownloadBroadcastReceiver : BroadcastReceiver(), KoinComponent {
     companion object {
-        private const val ACTION_DOWNLOAD_CANCEL = "download_cancel"
+        private const val ACTION_DOWNLOAD_PAUSE = "download_pause"
         private const val EXTRA_DOWNLOAD_ID = "download_id"
 
-        fun cancelDownloadIntent(context: Context, downloadId: Long) = Intent(
+        fun pauseDownloadIntent(context: Context, downloadId: Long) = Intent(
             context,
             DownloadBroadcastReceiver::class.java,
         ).apply {
-            action = ACTION_DOWNLOAD_CANCEL
+            action = ACTION_DOWNLOAD_PAUSE
             putExtra(EXTRA_DOWNLOAD_ID, downloadId)
         }
     }
@@ -28,13 +28,13 @@ class DownloadBroadcastReceiver : BroadcastReceiver(), KoinComponent {
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == ACTION_DOWNLOAD_CANCEL) {
+        if (intent.action == ACTION_DOWNLOAD_PAUSE) {
             val id = intent.getLongExtra(EXTRA_DOWNLOAD_ID, -1L)
             if (id == -1L) return
 
             val pendingResult = goAsync()
             coroutineScope.launch {
-                downloadManager.cancel(id)
+                downloadManager.pause(id)
             }.invokeOnCompletion {
                 pendingResult.finish()
             }

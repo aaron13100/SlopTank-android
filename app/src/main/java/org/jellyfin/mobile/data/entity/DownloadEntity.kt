@@ -8,13 +8,19 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import org.jellyfin.mobile.R
 import org.jellyfin.mobile.downloads.DownloadStatus
+import org.jellyfin.mobile.downloads.core.DownloadErrorReason
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import java.util.UUID
 
 @Entity(
     tableName = "download",
-    indices = [Index(value = ["server_id"]), Index(value = ["user_id"]), Index(value = ["item_id"])],
+    indices = [
+        Index(value = ["server_id"]),
+        Index(value = ["user_id"]),
+        Index(value = ["item_id"]),
+        Index(value = ["server_id", "user_id", "item_id"], unique = true),
+    ],
     foreignKeys = [
         ForeignKey(
             entity = ServerEntity::class,
@@ -42,6 +48,7 @@ data class DownloadEntity(
     @ColumnInfo(name = "item") val item: BaseItemDto,
 
     @ColumnInfo(name = "status") val status: DownloadStatus = DownloadStatus.QUEUED,
+    @ColumnInfo(name = "error_reason") val errorReason: DownloadErrorReason? = null,
 
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "modified_at") var modifiedAt: Long = System.currentTimeMillis(),

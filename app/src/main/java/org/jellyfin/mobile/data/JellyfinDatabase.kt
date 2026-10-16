@@ -9,9 +9,11 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.serialization.json.Json
 import org.jellyfin.mobile.data.dao.DownloadDao
+import org.jellyfin.mobile.data.dao.DownloadFileDao
 import org.jellyfin.mobile.data.dao.ServerDao
 import org.jellyfin.mobile.data.dao.UserDao
 import org.jellyfin.mobile.data.entity.DownloadEntity
@@ -30,7 +32,7 @@ import java.util.UUID
         DownloadEntity::class,
         DownloadFileEntity::class,
     ],
-    version = 5,
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = JellyfinDatabase.MigrateV4::class),
@@ -42,6 +44,7 @@ abstract class JellyfinDatabase : RoomDatabase() {
     abstract val serverDao: ServerDao
     abstract val userDao: UserDao
     abstract val downloadDao: DownloadDao
+    abstract val downloadFileDao: DownloadFileDao
 
     // Converters
 
@@ -91,4 +94,38 @@ abstract class JellyfinDatabase : RoomDatabase() {
 
     @DeleteTable(tableName = "Download")
     class MigrateV5 : AutoMigrationSpec
+
+    companion object {
+        /**
+         * Version 6: download progress, validators and error reasons, one download per server, user and item,
+         * and app-controlled storage. Downloads that were stored in a user-picked folder (SAF) are paused and
+         * must be resumed to be stored again in the app's own storage; the old files are left untouched.
+         */
+        private const val SCHEMA_V5 = 5
+        private const val SCHEMA_V6 = 6
+
+        val MIGRATION_5_6 = object : Migration(SCHEMA_V5, SCHEMA_V6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `download` ADD COLUMN `error_reason` TEXT")
+                db.execSQL(
+                    "DELETE FROM `download` WHERE `id` NOT IN " +
+                        "(SELECT MIN(`id`) FROM `download` GROUP BY `server_id`, `user_id`, `item_id`)",
+                )
+                db.execSQL("DELETE FROM `download_file` WHERE `download_id` NOT IN (SELECT `id` FROM `download`)")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_download_server_id_user_id_item_id` " +
+                        "ON `download` (`server_id`, `user_id`, `item_id`)",
+                )
+                db.execSQL("ALTER TABLE `download_file` ADD COLUMN `bytes_downloaded` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `download_file` ADD COLUMN `total_bytes` INTEGER NOT NULL DEFAULT -1")
+                db.execSQL("ALTER TABLE `download_file` ADD COLUMN `validator` TEXT")
+                db.execSQL("ALTER TABLE `download_file` ADD COLUMN `stream_index` INTEGER")
+                db.execSQL("ALTER TABLE `download_file` ADD COLUMN `local_path` TEXT")
+                db.execSQL(
+                    "UPDATE `download` SET `status` = 'PAUSED', `error_reason` = NULL WHERE `status` != 'CANCELLED'"
+                )
+                db.execSQL("UPDATE `download_file` SET `status` = 'QUEUED', `size` = 0")
+            }
+        }
+    }
 }

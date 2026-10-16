@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import de.Maxr1998.modernpreferences.Preference
 import de.Maxr1998.modernpreferences.PreferencesAdapter
@@ -16,7 +15,6 @@ import de.Maxr1998.modernpreferences.helpers.checkBox
 import de.Maxr1998.modernpreferences.helpers.defaultOnCheckedChange
 import de.Maxr1998.modernpreferences.helpers.defaultOnClick
 import de.Maxr1998.modernpreferences.helpers.defaultOnSelectionChange
-import de.Maxr1998.modernpreferences.helpers.onClick
 import de.Maxr1998.modernpreferences.helpers.pref
 import de.Maxr1998.modernpreferences.helpers.screen
 import de.Maxr1998.modernpreferences.helpers.singleChoice
@@ -24,7 +22,6 @@ import de.Maxr1998.modernpreferences.preferences.CheckBoxPreference
 import de.Maxr1998.modernpreferences.preferences.choice.SelectionItem
 import org.jellyfin.mobile.R
 import org.jellyfin.mobile.app.AppPreferences
-import org.jellyfin.mobile.app.StorageManager
 import org.jellyfin.mobile.databinding.FragmentSettingsBinding
 import org.jellyfin.mobile.downloads.DownloadMethod
 import org.jellyfin.mobile.utils.BackPressInterceptor
@@ -38,20 +35,6 @@ import org.koin.android.ext.android.inject
 class SettingsFragment : Fragment(), BackPressInterceptor {
 
     private val appPreferences: AppPreferences by inject()
-    private val storageManager: StorageManager by inject()
-
-    private val storageLocationPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            val changed = storageManager.changeStorageLocation(uri)
-
-            // Update preference
-            if (changed && ::downloadLocationPreference.isInitialized) {
-                downloadLocationPreference.summary = storageManager.getStorageLocation()?.name
-                downloadLocationPreference.requestRebindAndHighlight()
-            }
-        }
-    }
-
     private val settingsAdapter: PreferencesAdapter by lazy { PreferencesAdapter(buildSettingsScreen()) }
     private lateinit var startLandscapeVideoInLandscapePreference: CheckBoxPreference
     private lateinit var swipeGesturesPreference: CheckBoxPreference
@@ -62,7 +45,6 @@ class SettingsFragment : Fragment(), BackPressInterceptor {
     private lateinit var directPlayAssPreference: Preference
     private lateinit var networkBufferPreference: Preference
     private lateinit var externalPlayerChoicePreference: Preference
-    private lateinit var downloadLocationPreference: Preference
 
     init {
         Preference.Config.titleMaxLines = 2
@@ -280,18 +262,6 @@ class SettingsFragment : Fragment(), BackPressInterceptor {
         singleChoice(Constants.PREF_DOWNLOAD_METHOD, downloadMethods) {
             titleRes = R.string.network_title
             initialSelection = DownloadMethod.DEFAULT.intValue
-        }
-
-        downloadLocationPreference = pref(Constants.PREF_STORAGE_LOCATION) {
-            val location = storageManager.getStorageLocation()
-
-            titleRes = R.string.pref_download_location
-            summary = location?.name ?: getString(R.string.menu_item_none)
-
-            onClick {
-                storageLocationPicker.launch(location?.uri ?: storageManager.defaultStorageLocation)
-                false
-            }
         }
     }
 

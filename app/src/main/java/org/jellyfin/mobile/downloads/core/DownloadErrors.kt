@@ -1,6 +1,5 @@
 package org.jellyfin.mobile.downloads.core
 
-
 /**
  * Why a download is not (yet) complete. Persisted by name, so never rename an entry.
  */

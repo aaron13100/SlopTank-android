@@ -1,11 +1,11 @@
 package org.jellyfin.mobile.player.queue
 
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jellyfin.mobile.data.dao.DownloadDao
-import org.jellyfin.mobile.downloads.DownloadFileType
+import org.jellyfin.mobile.downloads.OfflineLibrary
 import org.jellyfin.mobile.player.PlayerException
 import org.jellyfin.mobile.player.PlayerViewModel
 import org.jellyfin.mobile.player.deviceprofile.DeviceProfileBuilder
@@ -13,6 +13,7 @@ import org.jellyfin.mobile.player.interaction.PlayOptions
 import org.jellyfin.mobile.player.interaction.PlayerWebPreferences
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
 import org.jellyfin.mobile.player.source.LocalJellyfinMediaSource
+import org.jellyfin.mobile.player.source.LocalMediaFiles
 import org.jellyfin.mobile.player.source.MediaSourceRequest
 import org.jellyfin.mobile.player.source.MediaSourceResolver
 import org.jellyfin.mobile.player.source.PlaybackDetails
@@ -37,7 +38,7 @@ class QueueManager(
     private val mediaSourceFactory = QueueMediaSourceFactory(apiClient)
     private val mediaSourceResolver: MediaSourceResolver by inject()
     private val deviceProfileBuilder: DeviceProfileBuilder by inject()
-    private val downloadDao: DownloadDao by inject()
+    private val offlineLibrary: OfflineLibrary by inject()
     private val deviceProfile = deviceProfileBuilder.getDeviceProfile()
 
     private var currentQueue: List<UUID> = emptyList()
@@ -114,23 +115,17 @@ class QueueManager(
         subtitleStreamIndex: Int? = null,
         playWhenReady: Boolean = true,
     ): PlayerException? {
-        val download = withContext(Dispatchers.IO) {
-            downloadDao.getDownloadByItemId(itemId)
+        val playable = withContext(Dispatchers.IO) {
+            offlineLibrary.findPlayable(itemId)
         } ?: return PlayerException.UnsupportedContent()
 
-        val files = withContext(Dispatchers.IO) {
-            downloadDao.getFiles(download.id)
-        }
-
-        val mainFile = files.find { it.type == DownloadFileType.ITEM } ?: return PlayerException.NetworkFailure()
-
         val mediaSource = LocalJellyfinMediaSource(
-            itemId = download.itemId,
-            item = download.item,
-            sourceInfo = download.item.mediaSources!!.first(),
-            playSessionId = download.id.toString(),
+            itemId = playable.download.itemId,
+            item = playable.download.item,
+            sourceInfo = playable.mediaSource,
+            playSessionId = playable.download.id.toString(),
             playbackDetails = PlaybackDetails(startTime, audioStreamIndex, subtitleStreamIndex),
-            remoteFileUri = mainFile.uri,
+            localFiles = LocalMediaFiles(Uri.fromFile(playable.mediaFile), playable.subtitleFiles),
         )
         startTime?.let { duration -> mediaSource.startTime = duration }
         audioStreamIndex?.let { index -> mediaSource.selectAudioStream(mediaSource.audioStreams[index]) }

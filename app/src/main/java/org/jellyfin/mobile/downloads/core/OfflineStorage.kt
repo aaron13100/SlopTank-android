@@ -32,7 +32,10 @@ class OfflineStorage(
 ) {
     fun accountDir(serverId: Long, userId: Long): File = File(File(root, "s$serverId"), "u$userId")
 
-    fun itemDir(serverId: Long, userId: Long, itemId: UUID): File = File(accountDir(serverId, userId), itemId.toString())
+    fun itemDir(serverId: Long, userId: Long, itemId: UUID): File = File(
+        accountDir(serverId, userId),
+        itemId.toString()
+    )
 
     fun finalFile(itemDir: File, fileName: String): File {
         require(isSafeName(fileName)) { "Unsafe file name $fileName" }
@@ -71,7 +74,13 @@ class OfflineStorage(
     }
 
     /** Bytes used by everything under [dir] (completed and partial files). */
-    fun usedBytes(dir: File = root): Long = if (dir.exists()) dir.walkTopDown().filter { it.isFile }.sumOf { it.length() } else 0L
+    fun usedBytes(dir: File = root): Long = if (dir.exists()) {
+        dir.walkTopDown().filter {
+            it.isFile
+        }.sumOf { it.length() }
+    } else {
+        0L
+    }
 
     /** Recursively deletes [dir], which must be inside [root]. Returns true if nothing is left. */
     fun deleteTree(dir: File): Boolean {

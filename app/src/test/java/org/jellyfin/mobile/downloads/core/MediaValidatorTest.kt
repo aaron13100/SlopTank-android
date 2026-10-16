@@ -14,7 +14,8 @@ class MediaValidatorTest {
     @Test
     fun `complete mp4 is valid`() {
         val bytes = TestMedia.mp4()
-        MediaValidator.validate(write(bytes), DownloadFileType.ITEM, bytes.size.toLong()) shouldBe MediaValidator.Result.Valid
+        MediaValidator.validate(write(bytes), DownloadFileType.ITEM, bytes.size.toLong()) shouldBe
+            MediaValidator.Result.Valid
     }
 
     @Test
@@ -55,13 +56,19 @@ class MediaValidatorTest {
     @Test
     fun `images and subtitles are checked by content`() {
         val webp = TestMedia.webp()
-        MediaValidator.validate(write(webp), DownloadFileType.IMAGE_PRIMARY, webp.size.toLong()) shouldBe MediaValidator.Result.Valid
+        MediaValidator.validate(write(webp), DownloadFileType.IMAGE_PRIMARY, webp.size.toLong()) shouldBe
+            MediaValidator.Result.Valid
         val html = "<html>error</html>".toByteArray()
         MediaValidator.validate(write(html), DownloadFileType.IMAGE_PRIMARY, html.size.toLong())
             .shouldBeInstanceOf<MediaValidator.Result.Invalid>()
         val srt = TestMedia.srt()
-        MediaValidator.validate(write(srt), DownloadFileType.SUBTITLE, srt.size.toLong()) shouldBe MediaValidator.Result.Valid
+        MediaValidator.validate(write(srt), DownloadFileType.SUBTITLE, srt.size.toLong()) shouldBe
+            MediaValidator.Result.Valid
         val binary = byteArrayOf(1, 0, 2)
-        MediaValidator.validate(write(binary), DownloadFileType.SUBTITLE, 3).shouldBeInstanceOf<MediaValidator.Result.Invalid>()
+        MediaValidator.validate(
+            write(binary),
+            DownloadFileType.SUBTITLE,
+            3
+        ).shouldBeInstanceOf<MediaValidator.Result.Invalid>()
     }
 }

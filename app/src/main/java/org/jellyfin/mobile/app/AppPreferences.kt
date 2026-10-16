@@ -65,18 +65,6 @@ class AppPreferences(context: Context) {
             }
         }
 
-    var storageLocation: String?
-        get() = sharedPreferences.getString(Constants.PREF_STORAGE_LOCATION, null)
-        set(value) {
-            sharedPreferences.edit {
-                if (value == null) {
-                    remove(Constants.PREF_STORAGE_LOCATION)
-                } else {
-                    putString(Constants.PREF_STORAGE_LOCATION, value)
-                }
-            }
-        }
-
     /**
      * The actions to take for each media segment type. Managed by the MediaSegmentRepository.
      */

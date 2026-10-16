@@ -1,6 +1,5 @@
 package org.jellyfin.mobile.utils
 
-import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.NotificationChannel
@@ -20,12 +19,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.jellyfin.mobile.BuildConfig
 import org.jellyfin.mobile.MainActivity
 import org.jellyfin.mobile.R
-import org.jellyfin.mobile.app.AppPreferences
 import org.jellyfin.mobile.downloads.DownloadManager
 import org.jellyfin.mobile.settings.ExternalPlayerPackage
-import org.jellyfin.mobile.ui.utils.shouldShowDownloadSettingsDialog
-import org.jellyfin.mobile.ui.utils.showDownloadSettingsDialog
 import org.jellyfin.mobile.webapp.WebViewFragment
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.serializer.toUUID
 import org.koin.android.ext.android.get
 import timber.log.Timber
@@ -60,34 +57,17 @@ fun WebViewFragment.requestNoBatteryOptimizations(rootView: CoordinatorLayout) {
 suspend fun MainActivity.requestDownload(itemIds: Collection<UUID>) {
     if (itemIds.isEmpty()) return
 
-    val appPreferences: AppPreferences = get()
     val downloadManager: DownloadManager = get()
-
-    // Show dialog to choose download location for first download
-    if (shouldShowDownloadSettingsDialog()) {
-        showDownloadSettingsDialog()
-    }
-
-    // If no storage location is set the request for choosing a download folder
-    // so we'll cancel the download too
-    if (appPreferences.storageLocation == null) return
-
-    // Request permissions to send notifications about download progress
-    suspendCancellableCoroutine { continuation ->
-        requestPermission("android.permission.POST_NOTIFICATIONS") { permissionsMap ->
-            if (permissionsMap[Manifest.permission.POST_NOTIFICATIONS] == PackageManager.PERMISSION_GRANTED) {
-                continuation.resume(true)
-            } else {
-                continuation.cancel(null)
-            }
-        }
-    }
-
-    // Add actual download
+    val apiClient: ApiClient = get()
     val server = mainViewModel.serverState.value.server ?: return
     val user = mainViewModel.userState.value.user ?: return
 
-    downloadManager.enqueueItems(server, user, itemIds)
+    // Progress notifications are optional: downloads proceed whether or not the permission is granted.
+    suspendCancellableCoroutine { continuation ->
+        requestPermission("android.permission.POST_NOTIFICATIONS") { continuation.resume(Unit) }
+    }
+
+    downloadManager.enqueueItems(apiClient, server.id, user.id, itemIds)
 }
 
 fun Activity.isAutoRotateOn() = Settings.System.getInt(contentResolver, ACCELEROMETER_ROTATION, 0) == 1

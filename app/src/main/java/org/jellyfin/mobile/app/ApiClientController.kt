@@ -96,6 +96,19 @@ class ApiClientController(
         )
     }
 
+    /**
+     * Returns an API client for a stored account, or null if the account no longer exists or is logged out.
+     */
+    fun getApiClientOrNull(server: Long, user: Long): ApiClient? {
+        val serverUser = userDao.getServerUser(server, user) ?: return null
+        val accessToken = serverUser.user.accessToken ?: return null
+        return jellyfin.createApi(
+            baseUrl = serverUser.server.hostname,
+            accessToken = accessToken,
+            deviceInfo = baseDeviceInfo.copy(id = baseDeviceInfo.id + serverUser.user.userId),
+        )
+    }
+
     fun getApiClient(server: Long, user: Long): ApiClient {
         val serverUser = userDao.getServerUser(server, user)
             ?: error("Invalid server user combination (server=$server, user=$user)")

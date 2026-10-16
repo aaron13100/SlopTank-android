@@ -23,7 +23,12 @@ object PortableMediaPolicy {
         data class NotPortable(val reason: String) : Decision
     }
 
-    private val SUPPORTED_KINDS = setOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE, BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO)
+    private val SUPPORTED_KINDS = setOf(
+        BaseItemKind.MOVIE,
+        BaseItemKind.EPISODE,
+        BaseItemKind.VIDEO,
+        BaseItemKind.MUSIC_VIDEO
+    )
     private val MP4_CONTAINERS = setOf("mp4", "m4v", "mov")
     private val TEXT_SUBTITLE_CODECS = setOf("srt", "subrip", "vtt", "webvtt", "ass", "ssa")
     private val EMBEDDED_SUBTITLE_CODECS = setOf("mov_text", "tx3g")
@@ -63,7 +68,8 @@ object PortableMediaPolicy {
             video.any { it.codec?.lowercase() != "h264" } -> "video is not H.264"
             audio.isEmpty() -> "no audio stream"
             audio.any { it.codec?.lowercase() != "aac" } -> "audio is not AAC"
-            embeddedSubtitles.any { it.codec?.lowercase() !in EMBEDDED_SUBTITLE_CODECS } -> "embedded subtitles are not MP4 text"
+            embeddedSubtitles.any { it.codec?.lowercase() !in EMBEDDED_SUBTITLE_CODECS } ->
+                "embedded subtitles are not MP4 text"
             else -> null
         }
     }

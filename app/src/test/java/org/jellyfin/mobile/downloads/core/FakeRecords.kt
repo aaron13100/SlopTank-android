@@ -40,14 +40,24 @@ class FakeRecords : DownloadRecords {
             owner[it.id] == downloadId && it.type == planned.type && it.streamIndex == planned.streamIndex
         }
         if (existing != null) return existing
-        val record = FileRecord(nextId++, planned.type, planned.streamIndex, planned.fileName, DownloadStatus.QUEUED, 0, -1, null)
+        val record = FileRecord(
+            nextId++,
+            planned.type,
+            planned.streamIndex,
+            planned.fileName,
+            DownloadStatus.QUEUED,
+            0,
+            -1,
+            null
+        )
         files[record.id] = record
         owner[record.id] = downloadId
         return record
     }
 
     override suspend fun startFile(fileId: Long, total: Long, validator: String?) {
-        files[fileId] = files.getValue(fileId).copy(status = DownloadStatus.DOWNLOADING, totalBytes = total, validator = validator)
+        files[fileId] = files.getValue(fileId)
+            .copy(status = DownloadStatus.DOWNLOADING, totalBytes = total, validator = validator)
     }
 
     override suspend fun updateFileProgress(fileId: Long, bytes: Long) {
@@ -56,17 +66,20 @@ class FakeRecords : DownloadRecords {
     }
 
     override suspend fun resetFile(fileId: Long) {
-        files[fileId] = files.getValue(fileId).copy(status = DownloadStatus.QUEUED, bytesDownloaded = 0, totalBytes = -1, validator = null)
+        files[fileId] = files.getValue(fileId)
+            .copy(status = DownloadStatus.QUEUED, bytesDownloaded = 0, totalBytes = -1, validator = null)
     }
 
     override suspend fun completeFile(fileId: Long, size: Long, relativePath: String) {
-        files[fileId] = files.getValue(fileId).copy(status = DownloadStatus.DOWNLOADED, bytesDownloaded = size, totalBytes = size)
+        files[fileId] = files.getValue(fileId)
+            .copy(status = DownloadStatus.DOWNLOADED, bytesDownloaded = size, totalBytes = size)
         paths[fileId] = relativePath
     }
 
     override suspend fun completeDownload(downloadId: Long): Boolean {
         val all = files.values.filter { owner[it.id] == downloadId }
-        if (statuses[downloadId] != DownloadStatus.DOWNLOADING || all.any { it.status != DownloadStatus.DOWNLOADED }) return false
+        val incomplete = all.any { it.status != DownloadStatus.DOWNLOADED }
+        if (statuses[downloadId] != DownloadStatus.DOWNLOADING || incomplete) return false
         statuses[downloadId] = DownloadStatus.DOWNLOADED
         reasons[downloadId] = null
         return true

@@ -35,30 +35,45 @@ object MediaValidator {
         val length = raf.length()
         val seen = mutableListOf<String>()
         var position = 0L
-        val header = ByteArray(BOX_HEADER)
         while (position < length) {
-            if (length - position < BOX_HEADER) return Result.Invalid("truncated box header at $position")
-            raf.seek(position)
-            raf.readFully(header)
-            val type = String(header, TYPE_OFFSET, TYPE_LENGTH, Charsets.ISO_8859_1)
-            if (!type.all { it in BOX_TYPE_CHARS }) return Result.Invalid("bad box type at $position")
-            val size = when (val small = readUInt32(header, 0)) {
-                0L -> length - position
-                1L -> {
-                    if (length - position < BOX_HEADER + LARGE_SIZE_LENGTH) return Result.Invalid("truncated large size")
-                    raf.readLong()
+            when (val box = readBox(raf, position, length)) {
+                is BoxRead.Bad -> return Result.Invalid(box.reason)
+                is BoxRead.Box -> {
+                    seen += box.type
+                    position += box.size
                 }
-                else -> small
             }
-            if (size < BOX_HEADER || position + size > length) return Result.Invalid("box $type overruns the file")
-            seen += type
-            position += size
         }
         when {
             seen.firstOrNull() != "ftyp" -> Result.Invalid("first box is not ftyp")
             "moov" !in seen -> Result.Invalid("no moov box")
             "mdat" !in seen -> Result.Invalid("no mdat box")
             else -> Result.Valid
+        }
+    }
+
+    private sealed interface BoxRead {
+        data class Box(val type: String, val size: Long) : BoxRead
+        data class Bad(val reason: String) : BoxRead
+    }
+
+    /** Reads the box header at [position]; the box must lie entirely inside the file. */
+    private fun readBox(raf: RandomAccessFile, position: Long, length: Long): BoxRead {
+        if (length - position < BOX_HEADER) return BoxRead.Bad("truncated box header at $position")
+        val header = ByteArray(BOX_HEADER)
+        raf.seek(position)
+        raf.readFully(header)
+        val type = String(header, TYPE_OFFSET, TYPE_LENGTH, Charsets.ISO_8859_1)
+        if (!type.all { it in BOX_TYPE_CHARS }) return BoxRead.Bad("bad box type at $position")
+        val size = when (val small = readUInt32(header, 0)) {
+            0L -> length - position
+            1L -> if (length - position < BOX_HEADER + LARGE_SIZE_LENGTH) -1L else raf.readLong()
+            else -> small
+        }
+        return if (size < BOX_HEADER || position + size > length) {
+            BoxRead.Bad("box $type overruns the file")
+        } else {
+            BoxRead.Box(type, size)
         }
     }
 
@@ -78,7 +93,9 @@ object MediaValidator {
     }
 
     private fun readUInt32(bytes: ByteArray, offset: Int): Long =
-        (0 until UINT32_LENGTH).fold(0L) { acc, i -> (acc shl BITS_PER_BYTE) or (bytes[offset + i].toLong() and BYTE_MASK) }
+        (0 until UINT32_LENGTH).fold(
+            0L
+        ) { acc, i -> (acc shl BITS_PER_BYTE) or (bytes[offset + i].toLong() and BYTE_MASK) }
 
     private fun java.io.InputStream.readNBytesCompat(count: Int): ByteArray {
         val buffer = ByteArray(count)
@@ -104,6 +121,6 @@ object MediaValidator {
     private const val JPEG_0 = 0xFF.toByte()
     private const val JPEG_1 = 0xD8.toByte()
     private const val TEXT_SAMPLE_LENGTH = 64 * 1024
-    private val PNG_MAGIC = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+    private val PNG_MAGIC = "\u0089PNG\r\n\u001a\n".toByteArray(Charsets.ISO_8859_1)
     private val BOX_TYPE_CHARS = (' '..'~').toSet()
 }

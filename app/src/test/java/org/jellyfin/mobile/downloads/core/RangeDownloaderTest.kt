@@ -38,7 +38,12 @@ class RangeDownloaderTest {
     fun tearDown() = server.shutdown()
 
     private fun download(validator: String?, knownTotal: Long, listener: RangeDownloader.Listener = Recorder()) =
-        runBlocking { downloader.download(RangeDownloader.Request(url, mapOf("Authorization" to "t"), part, validator, knownTotal), listener) }
+        runBlocking {
+            downloader.download(
+                RangeDownloader.Request(url, mapOf("Authorization" to "t"), part, validator, knownTotal),
+                listener
+            )
+        }
 
     @Test
     fun `fresh download writes the whole object and reports its validator`() {

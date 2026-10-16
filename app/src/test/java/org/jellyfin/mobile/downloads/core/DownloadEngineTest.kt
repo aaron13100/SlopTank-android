@@ -17,8 +17,14 @@ class DownloadEngineTest {
     private val image = TestMedia.webp()
     private val mediaOrigin = RangeServer(media)
     private val imageOrigin = RangeServer(image, "\"img\"")
-    private val mediaServer = MockWebServer().apply { dispatcher = mediaOrigin; start() }
-    private val imageServer = MockWebServer().apply { dispatcher = imageOrigin; start() }
+    private val mediaServer = MockWebServer().apply {
+        dispatcher = mediaOrigin
+        start()
+    }
+    private val imageServer = MockWebServer().apply {
+        dispatcher = imageOrigin
+        start()
+    }
     private val root = TestMedia.tempDir()
     private val space = FakeSpace()
     private val sync = RecordingDirectorySync()
@@ -54,7 +60,8 @@ class DownloadEngineTest {
         mediaFile.readBytes().contentEquals(media) shouldBe true
         partFiles().shouldBeEmpty()
         sync.synced.toSet() shouldBe setOf(itemDir)
-        records.paths.values.toSet() shouldBe setOf("s1/u1/${itemDir.name}/primary.webp", "s1/u1/${itemDir.name}/media.mp4")
+        records.paths.values.toSet() shouldBe
+            setOf("s1/u1/${itemDir.name}/primary.webp", "s1/u1/${itemDir.name}/media.mp4")
     }
 
     @Test
