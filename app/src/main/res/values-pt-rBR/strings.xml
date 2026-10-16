@@ -158,11 +158,8 @@
     <string name="pref_exoplayer_allow_horizontal_gesture_summary">Permitir controle por gestos horizontais para avançar/retroceder o vídeo</string>
     <string name="downloads_empty">Nenhum download ainda</string>
     <string name="downloads_empty_description">Você pode baixar filmes e séries para assistir off-line. Procure pelo ícone de download na página de detalhes do item.</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Remover download</item>
-        <item quantity="many">Remover downloads</item>
-        <item quantity="other">Remover downloads</item>
-    </plurals>
+    <string name="download_remove_title_single">Remover download</string>
+    <string name="download_remove_title_multiple">Remover downloads</string>
     <string name="download_settings_dialog_title">Escolha o local de download</string>
     <string name="download_settings_dialog_message">Por favor, escolha onde as mídias baixadas devem ser salvas. Por padrão, os downloads usam apenas Wi-Fi.</string>
     <string name="select_all">Marcar todos</string>

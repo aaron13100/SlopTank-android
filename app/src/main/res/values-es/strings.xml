@@ -159,11 +159,8 @@
     <string name="pref_exoplayer_allow_horizontal_gesture_summary">Permitir hacer gestos horizontales para navegar por el vídeo</string>
     <string name="downloads_empty">Aún no hay descargas</string>
     <string name="downloads_empty_description">Puedes descargar películas y series para verlas sin conexión. Busca el ícono de descarga en la página de detalles del ítem.</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Eliminar descarga</item>
-        <item quantity="many">Eliminar descargas</item>
-        <item quantity="other">Eliminar descargas</item>
-    </plurals>
+    <string name="download_remove_title_single">Eliminar descarga</string>
+    <string name="download_remove_title_multiple">Eliminar descargas</string>
     <string name="download_settings_dialog_title">Elegir un lugar de guardado</string>
     <string name="download_settings_dialog_message">Por favor, elija dónde deberían ser guardados los medios. Se descargarán únicamente con WiFi por defecto.</string>
     <string name="select_folder">Elegir carpeta</string>

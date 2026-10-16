@@ -149,10 +149,6 @@
         <item quantity="other">Вы ўпэўнены, што хочаце выдаліць %1$s спамповак?</item>
     </plurals>
     <string name="download_incomplete">Спампоўванне не завершана</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Выдаліць спампоўку</item>
-        <item quantity="few">Выдаліць спампоўкі</item>
-        <item quantity="many">Выдаліць спампоўкі</item>
-        <item quantity="other">Выдаліць спампоўкі</item>
-    </plurals>
+    <string name="download_remove_title_single">Выдаліць спампоўку</string>
+    <string name="download_remove_title_multiple">Выдаліць спампоўкі</string>
 </resources>

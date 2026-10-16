@@ -175,12 +175,6 @@
     <string name="download_location_not_set_description">لتحميل الوسيطة, يرجى اختيار مجلد حيث يتم حفظ الملفات فيه.</string>
     <string name="download_location_inaccessible">تعذر الوصول لموقع التحميل</string>
     <string name="download_location_inaccessible_description">يتعذر الوصول للموقع المختار للتحميل. يرجى اختيار مجلد آخر لإستكمال التجميل.</string>
-    <plurals name="download_remove_title">
-        <item quantity="zero">لا لحذف ملف تحميل</item>
-        <item quantity="one">حذف ملف تحميل</item>
-        <item quantity="two">حذف ملفي تحميل</item>
-        <item quantity="few">حذف ثلة ملفات تحميل</item>
-        <item quantity="many">حذف عدة ملفات تحميل</item>
-        <item quantity="other">حذف ملفات تجميل اخرى</item>
-    </plurals>
+    <string name="download_remove_title_single">حذف ملف تحميل</string>
+    <string name="download_remove_title_multiple">حذف ملفات تجميل اخرى</string>
 </resources>

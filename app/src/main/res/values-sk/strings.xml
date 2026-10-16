@@ -148,12 +148,8 @@
     <string name="download_cancel">Zrušiť</string>
     <string name="download_completed">Sťahovanie dokončené</string>
     <string name="download_progress">%1$d%%</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Odstrániť sťahovanie</item>
-        <item quantity="few">Odstrániť sťahovania</item>
-        <item quantity="many">Odstrániť sťahovania</item>
-        <item quantity="other">Odstrániť sťahovania</item>
-    </plurals>
+    <string name="download_remove_title_single">Odstrániť sťahovanie</string>
+    <string name="download_remove_title_multiple">Odstrániť sťahovania</string>
     <string name="download_remove_keep_local">Ponechať súbor(y) lokálne</string>
     <string name="download_incomplete">Sťahovanie nedokončené</string>
     <string name="download_settings_dialog_title">Vybrať umiestnenie sťahovania</string>

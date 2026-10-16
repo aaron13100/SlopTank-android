@@ -160,10 +160,8 @@
     <string name="download_settings_dialog_title">Downloadort wählen</string>
     <string name="download_settings_dialog_message">Bitte wähle, wohin heruntergeladene Medien gespeichert werden sollen. Downloads verwenden standardmäßig nur WLAN.</string>
     <string name="select_folder">Ordner wählen</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Download entfernen</item>
-        <item quantity="other">Downloads entfernen</item>
-    </plurals>
+    <string name="download_remove_title_single">Download entfernen</string>
+    <string name="download_remove_title_multiple">Downloads entfernen</string>
     <string name="select_all">Alle auswählen</string>
     <string name="deselect_all">Alle abwählen</string>
     <string name="selected_count">%1$d ausgewählt</string>

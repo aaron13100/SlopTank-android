@@ -112,10 +112,8 @@
     <string name="pref_exoplayer_allow_brightness_volume_gesture">სიკაშკაშის და ხმის დონის ჟესტები</string>
     <string name="failed_thumbnail">მინიატურის გადმოწერა ჩავარდა</string>
     <string name="pref_exoplayer_allow_press_speed_up">ასაჩქარებლად გეჭიროთ</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">გადმოწერის წაშლა</item>
-        <item quantity="other">გადმოწერების წაშლა</item>
-    </plurals>
+    <string name="download_remove_title_single">გადმოწერის წაშლა</string>
+    <string name="download_remove_title_multiple">გადმოწერების წაშლა</string>
     <plurals name="download_remove_description">
         <item quantity="one">გნებავთ წაშალოთ \"%2$s\" თქვენი გადმოწერებიდან?</item>
         <item quantity="other">გნებავთ წაშალოთ \'%1$d\' თქვენი გადმოწერებიდან?</item>

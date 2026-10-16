@@ -152,11 +152,7 @@
     <string name="download_cancel">ביטול</string>
     <string name="download_completed">הורדה הושלמה</string>
     <string name="download_progress">%1$d%%</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">הסר הורדה</item>
-        <item quantity="two">הסר הורדות</item>
-        <item quantity="other"></item>
-    </plurals>
+    <string name="download_remove_title_single">הסר הורדה</string>
     <string name="download_remove_keep_local">שמירת קבצים מקומיים</string>
     <plurals name="download_remove_description">
         <item quantity="one">האם ברצונך להסיר \"%2$s\" מההרדות שלך ?</item>

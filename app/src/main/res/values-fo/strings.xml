@@ -66,10 +66,8 @@
     <string name="downloading_title">Niðurtekur %1$s</string>
     <string name="download_cancel">Avlýs</string>
     <string name="download_completed">Niðurtøka liðug</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Strika niðurtøku</item>
-        <item quantity="other">Strika niðurtøkur</item>
-    </plurals>
+    <string name="download_remove_title_single">Strika niðurtøku</string>
+    <string name="download_remove_title_multiple">Strika niðurtøkur</string>
     <string name="download_remove_keep_local">Varðveit fílu(r) á eindini</string>
     <plurals name="download_remove_description">
         <item quantity="one">Ynskir tú at strika \"%2$s\" frá tínum niðurtøkum?</item>

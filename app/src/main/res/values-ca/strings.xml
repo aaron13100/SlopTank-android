@@ -161,11 +161,8 @@
     <string name="downloads_empty_description">Podeu descarregar pel·lícules i programes de televisió per a veure\'ls fora de línia. Cerqueu la icona de descàrrega a la pàgina de detalls de l\'element.</string>
     <string name="download_settings_dialog_message">Trieu on voleu que es desin els continguts multimèdia descarregats. Les descàrregues fan servir Wi-Fi només per defecte.</string>
     <string name="pref_exoplayer_allow_horizontal_gesture_summary">Permet el control gestual horitzontal per a la cerca de vídeos</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Elimina la descàrrega</item>
-        <item quantity="many">Elimina les descàrregues</item>
-        <item quantity="other">Elimina les descàrregues</item>
-    </plurals>
+    <string name="download_remove_title_single">Elimina la descàrrega</string>
+    <string name="download_remove_title_multiple">Elimina les descàrregues</string>
     <string name="select_all">Selecciona-ho tot</string>
     <string name="deselect_all">Desselecciona-ho tot</string>
     <string name="selected_count">%1$d seleccionat</string>

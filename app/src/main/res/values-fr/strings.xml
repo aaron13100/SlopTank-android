@@ -163,11 +163,8 @@
     <string name="download_settings_dialog_title">Choisissez l\'emplacement de téléchargement</string>
     <string name="download_settings_dialog_message">Veuillez choisir l\'emplacement où enregistrer les fichiers multimédias téléchargés. Par défaut, les téléchargements s\'effectuent uniquement via le Wi-Fi.</string>
     <string name="select_folder">Sélectionner un dossier</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Supprimer téléchargement</item>
-        <item quantity="many">Supprimer téléchargements</item>
-        <item quantity="other">Supprimer téléchargements</item>
-    </plurals>
+    <string name="download_remove_title_single">Supprimer téléchargement</string>
+    <string name="download_remove_title_multiple">Supprimer téléchargements</string>
     <string name="select_all">Tous sélectionner</string>
     <string name="deselect_all">Tous désélectionner</string>
     <string name="selected_count">%1$d sélectionné</string>

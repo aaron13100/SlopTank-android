@@ -163,12 +163,8 @@
     <string name="download_settings_dialog_title">Виберіть місце завантаження</string>
     <string name="download_settings_dialog_message">Будь ласка, виберіть місце, куди потрібно зберігати завантажені медіафайли. За замовчуванням завантаження виконуються лише через Wi-Fi.</string>
     <string name="select_folder">Виберіть папку</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Видалити завантаження</item>
-        <item quantity="few">Видалити завантаження</item>
-        <item quantity="many">Видалити завантажень</item>
-        <item quantity="other">Видалити завантажень</item>
-    </plurals>
+    <string name="download_remove_title_single">Видалити завантаження</string>
+    <string name="download_remove_title_multiple">Видалити завантажень</string>
     <string name="select_all">Вибрати все</string>
     <string name="deselect_all">Зняти вибір із усіх</string>
     <string name="selected_count">%1$d вибрано</string>

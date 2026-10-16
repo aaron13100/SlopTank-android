@@ -161,10 +161,8 @@
     <string name="download_settings_dialog_title">Letöltési hely kiválasztása</string>
     <string name="download_settings_dialog_message">Kérjük, válassza ki, hová mentse a letöltött médiafájlokat. A letöltések alapértelmezés szerint csak Wi-Fi-t használnak.</string>
     <string name="select_folder">Mappa kiválasztása</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Letöltés eltávolítása</item>
-        <item quantity="other">Letöltések eltávolítása</item>
-    </plurals>
+    <string name="download_remove_title_single">Letöltés eltávolítása</string>
+    <string name="download_remove_title_multiple">Letöltések eltávolítása</string>
     <string name="select_all">Összes kijelölése</string>
     <string name="deselect_all">Összes kijelölés törlése</string>
     <string name="download_location_not_set">Nincs letöltési hely</string>

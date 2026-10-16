@@ -32,7 +32,14 @@ fun DownloadRemoveDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = pluralStringResource(R.plurals.download_remove_title, downloads.size)) },
+        title = {
+            val titleRes = if (downloads.size == 1) {
+                R.string.download_remove_title_single
+            } else {
+                R.string.download_remove_title_multiple
+            }
+            Text(text = stringResource(titleRes))
+        },
         text = {
             Column {
                 val name = remember(downloads, context) {

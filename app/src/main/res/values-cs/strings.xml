@@ -162,12 +162,8 @@
     <string name="pref_exoplayer_allow_horizontal_gesture_summary">Povolit ovládání pomocí horizontálních gest pro posun ve videu</string>
     <string name="downloads_empty">Zatím žádná stahování</string>
     <string name="downloads_empty_description">Můžete si stahovat filmy a seriály a sledovat je offline. Hledejte ikonu stahování na stránce s podrobnostmi o položce.</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Odstranit stahování</item>
-        <item quantity="few">Odstranit stahování</item>
-        <item quantity="many">Odstranit stahování</item>
-        <item quantity="other">Odstranit stahování</item>
-    </plurals>
+    <string name="download_remove_title_single">Odstranit stahování</string>
+    <string name="download_remove_title_multiple">Odstranit stahování</string>
     <string name="download_settings_dialog_title">Vyberte umístění stahování</string>
     <string name="download_settings_dialog_message">Vyberte, kam mají být uložena stažená média. Stahování bude ve výchozím nastavení probíhat pouze přes Wi-Fi.</string>
     <string name="select_folder">Vybrat složku</string>

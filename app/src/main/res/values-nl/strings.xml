@@ -161,10 +161,8 @@
     <string name="download_settings_dialog_message">Kies waar gedownloade media wordt opgeslagen. Downloads gebruiken standaard alleen wifi.</string>
     <string name="downloads_empty_description">Je kunt films en series downloaden om ze offline te kunnen kijken. Zoek naar het download-icoon op de detailpagina van het item.</string>
     <string name="downloads_empty">Nog geen downloads</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Download verwijderen</item>
-        <item quantity="other">Downloads verwijderen</item>
-    </plurals>
+    <string name="download_remove_title_single">Download verwijderen</string>
+    <string name="download_remove_title_multiple">Downloads verwijderen</string>
     <string name="select_all">Alles selecteren</string>
     <string name="deselect_all">Selectie opheffen</string>
     <string name="selected_count">%1$d geselecteerd</string>

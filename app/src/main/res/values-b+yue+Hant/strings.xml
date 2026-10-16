@@ -156,9 +156,7 @@
     <string name="download_settings_dialog_title">揀下載位置</string>
     <string name="download_settings_dialog_message">請揀你要將下載嘅媒體儲存喺邊度。預設情況下，下載只會用 WiFi。</string>
     <string name="select_folder">揀資料夾</string>
-    <plurals name="download_remove_title">
-        <item quantity="other">移除下載項目</item>
-    </plurals>
+    <string name="download_remove_title_multiple">移除下載項目</string>
     <string name="select_all">揀嗮全部</string>
     <string name="deselect_all">取消全揀</string>
     <string name="selected_count">已揀 %1$d</string>

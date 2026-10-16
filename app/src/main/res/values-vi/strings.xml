@@ -159,9 +159,7 @@
     <string name="download_settings_dialog_title">Chọn vị trí tải xuống</string>
     <string name="download_settings_dialog_message">Vui lòng chọn nơi lưu phương tiện đã tải xuống. Tải xuống chỉ sử dụng WiFi theo mặc định.</string>
     <string name="select_folder">Chọn thư mục</string>
-    <plurals name="download_remove_title">
-        <item quantity="other">Xóa tải xuống</item>
-    </plurals>
+    <string name="download_remove_title_multiple">Xóa tải xuống</string>
     <string name="select_all">Chọn tất cả</string>
     <string name="deselect_all">Bỏ chọn tất cả</string>
     <string name="selected_count">%1$d đã chọn</string>

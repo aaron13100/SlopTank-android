@@ -152,11 +152,7 @@
     <string name="download_cancel">Cancelar</string>
     <string name="download_completed">Descarga completa</string>
     <string name="download_progress">%1$d%%</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Eliminar descarga</item>
-        <item quantity="many"></item>
-        <item quantity="other"></item>
-    </plurals>
+    <string name="download_remove_title_single">Eliminar descarga</string>
     <string name="download_remove_keep_local">Conservar archivo(s) locales</string>
     <plurals name="download_remove_description">
         <item quantity="one">¿Quieres eliminar \"%2$s\" de tus descargas?</item>

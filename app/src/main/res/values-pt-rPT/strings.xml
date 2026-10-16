@@ -155,11 +155,8 @@
     <string name="download_incomplete">Download incompleto</string>
     <string name="download_settings_dialog_title">Escolha o local de download</string>
     <string name="download_progress">%1$d%%</string>
-    <plurals name="download_remove_title">
-        <item quantity="one">Remover transferência</item>
-        <item quantity="many">Remover transferências</item>
-        <item quantity="other">Remover transferências</item>
-    </plurals>
+    <string name="download_remove_title_single">Remover transferência</string>
+    <string name="download_remove_title_multiple">Remover transferências</string>
     <string name="media_service_auth_expired">Por favor abra a aplicação no seu telemóvel para iniciar sessão no seu servidor do Jellyfin.</string>
     <string name="pref_exoplayer_allow_horizontal_gesture_summary">Permitir controlo por gestos horizontais para navegar no vídeo</string>
     <string name="pref_exoplayer_network_buffer">Tamanho do buffer de reprodução</string>
