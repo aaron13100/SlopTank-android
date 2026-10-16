@@ -11,6 +11,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.analytics.AnalyticsCollector
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
+import org.jellyfin.mobile.player.source.LocalJellyfinMediaSource
 import org.jellyfin.mobile.ui.content.ImageProvider
 import org.jellyfin.mobile.utils.extensions.width
 import org.jellyfin.sdk.model.api.ImageType
@@ -34,8 +35,11 @@ fun JellyfinMediaSource.toMediaMetadata(): MediaMetadata = MediaMetadata.Builder
         putString(MediaMetadata.METADATA_KEY_ARTIST, artists)
     }
     putLong(MediaMetadata.METADATA_KEY_DURATION, runTime.inWholeMilliseconds)
-    val imageUri = ImageProvider.buildItemUri(itemId, ImageType.PRIMARY, item?.imageTags?.get(ImageType.PRIMARY))
-    putString(MediaMetadata.METADATA_KEY_ART_URI, imageUri.toString())
+    // The image provider fetches artwork from the server, so downloads (played offline) publish none.
+    if (this@toMediaMetadata !is LocalJellyfinMediaSource) {
+        val imageUri = ImageProvider.buildItemUri(itemId, ImageType.PRIMARY, item?.imageTags?.get(ImageType.PRIMARY))
+        putString(MediaMetadata.METADATA_KEY_ART_URI, imageUri.toString())
+    }
 }.build()
 
 fun MediaSession.setPlaybackState(playbackState: Int, position: Long, playbackActions: Long) {

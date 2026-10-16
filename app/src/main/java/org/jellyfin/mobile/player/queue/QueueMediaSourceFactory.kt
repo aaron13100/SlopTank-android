@@ -7,10 +7,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
+import org.jellyfin.mobile.player.deviceprofile.CodecHelpers
 import org.jellyfin.mobile.player.source.ExternalSubtitleStream
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
 import org.jellyfin.mobile.player.source.LocalJellyfinMediaSource
 import org.jellyfin.mobile.player.source.RemoteJellyfinMediaSource
+import org.jellyfin.mobile.utils.Constants
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.videosApi
 import org.jellyfin.sdk.api.operations.VideosApi
@@ -37,7 +39,11 @@ internal class QueueMediaSourceFactory(
      */
     @CheckResult
     fun prepareStreams(source: LocalJellyfinMediaSource): MediaSource {
-        return createDownloadVideoMediaSource(source.id, source.remoteFileUri)
+        return createDownloadVideoMediaSource(
+            source.id,
+            source.remoteFileUri,
+            createLocalSubtitleConfigurations(source)
+        )
     }
 
     fun prepareStreams(source: RemoteJellyfinMediaSource): MediaSource {
@@ -135,14 +141,36 @@ internal class QueueMediaSourceFactory(
         }.toList()
     }
 
+    /**
+     * Side-loads the downloaded external subtitle files, using the same ids as remote external subtitles so
+     * track selection works identically.
+     */
+    private fun createLocalSubtitleConfigurations(
+        source: LocalJellyfinMediaSource,
+    ): List<MediaItem.SubtitleConfiguration> = source.subtitleStreams.mapNotNull { stream ->
+        val file = source.localFiles.subtitleFiles[stream.index] ?: return@mapNotNull null
+        val mimeType = CodecHelpers.getSubtitleMimeType(stream.codec) ?: return@mapNotNull null
+        MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(file)).apply {
+            setId("${ExternalSubtitleStream.ID_PREFIX}${stream.index}")
+            setLabel(stream.displayTitle.orEmpty())
+            setMimeType(mimeType)
+            setLanguage(stream.language ?: Constants.LANGUAGE_UNDEFINED)
+        }.build()
+    }
+
     @CheckResult
-    private fun createDownloadVideoMediaSource(mediaSourceId: String, fileUri: Uri): MediaSource {
+    private fun createDownloadVideoMediaSource(
+        mediaSourceId: String,
+        fileUri: Uri,
+        subtitles: List<MediaItem.SubtitleConfiguration>,
+    ): MediaSource {
         val factory: MediaSource.Factory = get()
 
         val mediaItem = MediaItem.Builder()
             .setMediaId(mediaSourceId)
             .setUri(fileUri)
             .setCustomCacheKey(fileUri.toString())
+            .setSubtitleConfigurations(subtitles)
             .build()
 
         return factory.createMediaSource(mediaItem)

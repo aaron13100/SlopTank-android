@@ -179,6 +179,13 @@ val applicationModule = module {
     single { RangeDownloader(get(), get()) }
     single { DownloadEngine(get(), get(), get()) }
     single { DownloadPlanner(get()) }
-    single { OfflineLibrary(get(), get(), get()) }
+    single {
+        val appPreferences: AppPreferences = get()
+        OfflineLibrary(get(), get()) {
+            val server = appPreferences.currentServerId
+            val user = appPreferences.currentUserId
+            if (server != null && user != null) server to user else null
+        }
+    }
     single { DownloadQueue(get(), get(), get(), get(), get(), get()) }
 }

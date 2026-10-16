@@ -22,6 +22,7 @@ import coil3.size.Size
 import coil3.toBitmap
 import org.jellyfin.mobile.R
 import org.jellyfin.mobile.player.source.JellyfinMediaSource
+import org.jellyfin.mobile.player.source.LocalJellyfinMediaSource
 import org.jellyfin.mobile.utils.Constants
 import org.jellyfin.mobile.utils.coil.SubsetTransformation
 import org.jellyfin.sdk.api.client.ApiClient
@@ -73,6 +74,9 @@ class TrickplayHelper(
         pendingRequest = null
         chapters = null
         thumbnailContainer.visibility = View.GONE
+
+        // Downloads play without the network, so no trickplay tiles are fetched for them.
+        if (source is LocalJellyfinMediaSource) return
 
         val item = source?.item
         val resolvedSourceId = source?.id

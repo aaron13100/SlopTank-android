@@ -164,44 +164,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
 
     private var displayPreferences = DisplayPreferences()
     private var autoPlayNextEpisodeEnabled: Boolean = false
+    private var serverPreferencesRequested = false
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
-
-        // Load display preferences
-        viewModelScope.launch {
-            var customPrefs: Map<String, String?>? = null
-            try {
-                val displayPreferencesDto = withContext(Dispatchers.IO) {
-                    displayPreferencesApi.getDisplayPreferences(
-                        displayPreferencesId = Constants.DISPLAY_PREFERENCES_ID_USER_SETTINGS,
-                        client = Constants.DISPLAY_PREFERENCES_CLIENT_EMBY,
-                    ).content
-                }
-
-                customPrefs = displayPreferencesDto.customPrefs
-            } catch (e: ApiClientException) {
-                Timber.e(e, "Failed to load display preferences from API")
-            }
-
-            displayPreferences = DisplayPreferences(
-                skipBackLength = customPrefs?.get(Constants.DISPLAY_PREFERENCES_SKIP_BACK_LENGTH)?.toLongOrNull()
-                    ?: Constants.DEFAULT_SEEK_TIME_MS,
-                skipForwardLength = customPrefs?.get(Constants.DISPLAY_PREFERENCES_SKIP_FORWARD_LENGTH)?.toLongOrNull()
-                    ?: Constants.DEFAULT_SEEK_TIME_MS,
-            )
-        }
-
-        viewModelScope.launch {
-            try {
-                val userConfig = withContext(Dispatchers.IO) {
-                    userApi.getCurrentUser().content.configuration
-                }
-                autoPlayNextEpisodeEnabled = userConfig?.enableNextEpisodeAutoPlay ?: false
-            } catch (e: ApiClientException) {
-                Timber.e(e, "Failed to load auto play preference")
-            }
-        }
 
         // Subscribe to player events from webapp
         viewModelScope.launch {
@@ -310,8 +276,51 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
         mediaSession.setMetadata(jellyfinMediaSource.toMediaMetadata())
 
         if (jellyfinMediaSource is RemoteJellyfinMediaSource) {
+            loadServerPreferences()
             viewModelScope.launch {
                 player.reportPlaybackStart(jellyfinMediaSource)
+            }
+        }
+    }
+
+    /**
+     * Loads the user's server-side player preferences. Only called for streamed playback: a download plays
+     * with local defaults and never contacts the server.
+     */
+    private fun loadServerPreferences() {
+        if (serverPreferencesRequested) return
+        serverPreferencesRequested = true
+        viewModelScope.launch {
+            var customPrefs: Map<String, String?>? = null
+            try {
+                val displayPreferencesDto = withContext(Dispatchers.IO) {
+                    displayPreferencesApi.getDisplayPreferences(
+                        displayPreferencesId = Constants.DISPLAY_PREFERENCES_ID_USER_SETTINGS,
+                        client = Constants.DISPLAY_PREFERENCES_CLIENT_EMBY,
+                    ).content
+                }
+
+                customPrefs = displayPreferencesDto.customPrefs
+            } catch (e: ApiClientException) {
+                Timber.e(e, "Failed to load display preferences from API")
+            }
+
+            displayPreferences = DisplayPreferences(
+                skipBackLength = customPrefs?.get(Constants.DISPLAY_PREFERENCES_SKIP_BACK_LENGTH)?.toLongOrNull()
+                    ?: Constants.DEFAULT_SEEK_TIME_MS,
+                skipForwardLength = customPrefs?.get(Constants.DISPLAY_PREFERENCES_SKIP_FORWARD_LENGTH)?.toLongOrNull()
+                    ?: Constants.DEFAULT_SEEK_TIME_MS,
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                val userConfig = withContext(Dispatchers.IO) {
+                    userApi.getCurrentUser().content.configuration
+                }
+                autoPlayNextEpisodeEnabled = userConfig?.enableNextEpisodeAutoPlay ?: false
+            } catch (e: ApiClientException) {
+                Timber.e(e, "Failed to load auto play preference")
             }
         }
     }
@@ -515,6 +524,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
 
     private fun applyMediaSegments(jellyfinMediaSource: JellyfinMediaSource) {
         askToSkipMediaSegments = emptyList()
+
+        // Media segments come from the server; downloads play without them.
+        if (jellyfinMediaSource !is RemoteJellyfinMediaSource) return
 
         viewModelScope.launch {
             if (jellyfinMediaSource.item != null) {

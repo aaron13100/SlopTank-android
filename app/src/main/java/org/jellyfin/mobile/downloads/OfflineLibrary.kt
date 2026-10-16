@@ -1,6 +1,5 @@
 package org.jellyfin.mobile.downloads
 
-import org.jellyfin.mobile.app.AppPreferences
 import org.jellyfin.mobile.data.dao.DownloadDao
 import org.jellyfin.mobile.data.entity.DownloadEntity
 import org.jellyfin.mobile.data.entity.DownloadFiles
@@ -28,14 +27,10 @@ data class PlayableDownload(
 class OfflineLibrary(
     private val downloadDao: DownloadDao,
     private val storage: OfflineStorage,
-    private val appPreferences: AppPreferences,
-) {
     /** The current account as (local server id, local user id), or null if none is selected. */
-    fun currentAccount(): Pair<Long, Long>? {
-        val server = appPreferences.currentServerId ?: return null
-        val user = appPreferences.currentUserId ?: return null
-        return server to user
-    }
+    private val accountProvider: () -> Pair<Long, Long>?,
+) {
+    fun currentAccount(): Pair<Long, Long>? = accountProvider()
 
     suspend fun findPlayable(itemId: UUID): PlayableDownload? {
         val (serverId, userId) = currentAccount() ?: return null

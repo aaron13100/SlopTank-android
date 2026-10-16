@@ -72,6 +72,17 @@ class QueueManager(
             else -> playOptions.mediaSourceId?.toUUIDOrNull()
         } ?: return PlayerException.InvalidPlayOptions()
 
+        // A download plays from local files only; nothing below may touch the network.
+        if (playOptions.playFromDownloads == true) {
+            return startDownloadPlayback(
+                itemId = itemId,
+                startTime = playOptions.startPosition,
+                audioStreamIndex = playOptions.audioStreamIndex,
+                subtitleStreamIndex = playOptions.subtitleStreamIndex,
+                playWhenReady = true,
+            )
+        }
+
         val maxStreamingBitrate = preferences?.let {
             withContext(Dispatchers.IO) {
                 runCatching {
@@ -86,12 +97,7 @@ class QueueManager(
         }
 
         when (playOptions.playFromDownloads) {
-            true -> playOptions.mediaSourceId?.let {
-                startDownloadPlayback(
-                    itemId = itemId,
-                    playWhenReady = true,
-                )
-            }
+            true -> Unit
             else -> startRemotePlayback(
                 MediaSourceRequest(
                     itemId = itemId,

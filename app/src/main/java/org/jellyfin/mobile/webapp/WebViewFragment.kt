@@ -33,6 +33,8 @@ import org.jellyfin.mobile.bridge.NativeNavigationInterface
 import org.jellyfin.mobile.bridge.NativePlayer
 import org.jellyfin.mobile.data.entity.ServerEntity
 import org.jellyfin.mobile.databinding.FragmentWebviewBinding
+import org.jellyfin.mobile.events.ActivityEvent
+import org.jellyfin.mobile.events.ActivityEventHandler
 import org.jellyfin.mobile.setup.ConnectFragment
 import org.jellyfin.mobile.utils.AndroidVersion
 import org.jellyfin.mobile.utils.BackPressInterceptor
@@ -54,6 +56,7 @@ class WebViewFragment : Fragment(), BackPressInterceptor, JellyfinWebChromeClien
     val appPreferences: AppPreferences by inject()
     private val mainViewModel: MainViewModel by activityViewModel()
     private val webappFunctionChannel: WebappFunctionChannel by inject()
+    private val activityEventHandler: ActivityEventHandler by inject()
     private lateinit var assetsPathHandler: AssetsPathHandler
     private lateinit var jellyfinWebViewClient: JellyfinWebViewClient
     private val nativePlayer: NativePlayer by inject()
@@ -159,6 +162,11 @@ class WebViewFragment : Fragment(), BackPressInterceptor, JellyfinWebChromeClien
             webView.stopLoading()
             webViewBinding!!.loadingContainer.isVisible = false
             onSelectServer(error = false)
+        }
+
+        // Downloads stay reachable while the server cannot be loaded (for example with no network)
+        webViewBinding!!.viewDownloadsButton.setOnClickListener {
+            activityEventHandler.emit(ActivityEvent.OpenDownloads)
         }
 
         // Process JS functions called from other components (e.g. the PlayerActivity)
