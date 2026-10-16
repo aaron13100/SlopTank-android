@@ -17,7 +17,9 @@ class PlayerService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        val notification = requireNotNull(IntentCompat.getParcelableExtra(intent, EXTRA_NOTIFICATION, Notification::class.java))
+        val notification = requireNotNull(
+            IntentCompat.getParcelableExtra(intent, EXTRA_NOTIFICATION, Notification::class.java)
+        )
 
         val foregroundServiceType = when {
             AndroidVersion.isAtLeastQ -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK

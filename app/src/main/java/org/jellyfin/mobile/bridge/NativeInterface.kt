@@ -110,7 +110,10 @@ class NativeInterface(private val context: Context) : KoinComponent {
             putExtra(EXTRA_ARTIST, options[EXTRA_ARTIST]?.jsonPrimitive?.contentOrNull ?: "")
             putExtra(EXTRA_ALBUM, options[EXTRA_ALBUM]?.jsonPrimitive?.contentOrNull ?: "")
             putExtra(EXTRA_IMAGE_URL, options[EXTRA_IMAGE_URL]?.jsonPrimitive?.contentOrNull ?: "")
-            putExtra(EXTRA_POSITION, options[EXTRA_POSITION]?.jsonPrimitive?.longOrNull ?: PlaybackState.PLAYBACK_POSITION_UNKNOWN)
+            putExtra(
+                EXTRA_POSITION,
+                options[EXTRA_POSITION]?.jsonPrimitive?.longOrNull ?: PlaybackState.PLAYBACK_POSITION_UNKNOWN
+            )
             putExtra(EXTRA_DURATION, options[EXTRA_DURATION]?.jsonPrimitive?.longOrNull ?: 0L)
             putExtra(EXTRA_CAN_SEEK, options[EXTRA_CAN_SEEK]?.jsonPrimitive?.booleanOrNull ?: false)
             putExtra(EXTRA_IS_LOCAL_PLAYER, options[EXTRA_IS_LOCAL_PLAYER]?.jsonPrimitive?.booleanOrNull ?: true)

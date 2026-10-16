@@ -69,7 +69,10 @@ class QueueManager(
      *
      * @return an error of type [PlayerException] or null on success.
      */
-    suspend fun initializePlaybackQueue(playOptions: PlayOptions, preferences: PlayerWebPreferences? = null): PlayerException? {
+    suspend fun initializePlaybackQueue(
+        playOptions: PlayOptions,
+        preferences: PlayerWebPreferences? = null
+    ): PlayerException? {
         currentQueue = playOptions.ids
         currentQueueIndex = playOptions.startIndex
         resetPlaybackFallback()
@@ -83,8 +86,11 @@ class QueueManager(
             withContext(Dispatchers.IO) {
                 runCatching {
                     val endpoint by apiClient.systemApi.getEndpointInfo()
-                    if (endpoint.isInNetwork) it.maxStreamingBitrateLocal
-                    else it.maxStreamingBitrateRemote
+                    if (endpoint.isInNetwork) {
+                        it.maxStreamingBitrateLocal
+                    } else {
+                        it.maxStreamingBitrateRemote
+                    }
                 }
             }.getOrNull()
         }

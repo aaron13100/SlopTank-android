@@ -31,4 +31,3 @@ data class DownloadFileEntity(
     @ColumnInfo(name = "uri") val uri: Uri,
     @ColumnInfo(name = "status") val status: DownloadStatus = DownloadStatus.QUEUED,
 )
-

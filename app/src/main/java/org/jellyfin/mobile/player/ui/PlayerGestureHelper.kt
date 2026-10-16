@@ -206,15 +206,21 @@ class PlayerGestureHelper(
                     val deltaX = currentEvent.x - firstEvent.x
                     val deltaY = currentEvent.y - firstEvent.y
 
-                    currentGesture = if (abs(deltaX) > abs(deltaY) * 2) GestureDirection.HORIZONTAL
-                    else if (abs(deltaY) > abs(deltaX) * 2) GestureDirection.VERTICAL
-                    else return false
+                    currentGesture = if (abs(deltaX) > abs(deltaY) * 2) {
+                        GestureDirection.HORIZONTAL
+                    } else if (abs(deltaY) > abs(deltaX) * 2) {
+                        GestureDirection.VERTICAL
+                    } else {
+                        return false
+                    }
                 }
 
                 // Handle horizontal swipe for seek
                 if (currentGesture == GestureDirection.HORIZONTAL && appPreferences.exoPlayerAllowHorizontalGesture) {
                     // Check horizontal exclusion zones (edges of screen)
-                    val exclusionSizeHorizontal = playerView.resources.dip(Constants.SWIPE_GESTURE_EXCLUSION_SIZE_HORIZONTAL)
+                    val exclusionSizeHorizontal = playerView.resources.dip(
+                        Constants.SWIPE_GESTURE_EXCLUSION_SIZE_HORIZONTAL
+                    )
                     if (
                         firstEvent.x < exclusionSizeHorizontal ||
                         firstEvent.x > playerView.width - exclusionSizeHorizontal
@@ -297,7 +303,6 @@ class PlayerGestureHelper(
                     mediaDuration = 0L
                     seekOverlayLayout.isVisible = false
                 }
-
 
                 if (!appPreferences.exoPlayerAllowSwipeGestures) {
                     return false

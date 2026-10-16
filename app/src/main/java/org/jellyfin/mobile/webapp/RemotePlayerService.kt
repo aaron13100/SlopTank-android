@@ -478,8 +478,9 @@ class RemotePlayerService : Service(), CoroutineScope {
                             else -> null
                         }
 
-                        if (keyEvent.action != KeyEvent.ACTION_DOWN || keyEvent.repeatCount != 0) return command != null
-                        else if (command == null) return super.onMediaButtonEvent(mediaButtonIntent)
+                        if (keyEvent.action != KeyEvent.ACTION_DOWN || keyEvent.repeatCount != 0) {
+                            return command != null
+                        } else if (command == null) return super.onMediaButtonEvent(mediaButtonIntent)
 
                         webappFunctionChannel.callPlaybackManagerAction(command)
                         return true

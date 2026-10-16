@@ -55,7 +55,10 @@ class DownloadQueue(
     private suspend fun process(downloadWithFiles: DownloadFiles) {
         // Mark as downloading
         downloadDao.update(downloadWithFiles.download.copy(status = DownloadStatus.DOWNLOADING))
-        val api = apiClientController.getApiClient(downloadWithFiles.download.serverId, downloadWithFiles.download.userId)
+        val api = apiClientController.getApiClient(
+            downloadWithFiles.download.serverId,
+            downloadWithFiles.download.userId
+        )
 
         try {
             val queuedFiles = prepareFiles(api, downloadWithFiles)

@@ -14,7 +14,7 @@ plugins {
 
 detekt {
     buildUponDefaultConfig = true
-    ignoreFailures = true
+    ignoreFailures = false
     config.setFrom(files("$rootDir/detekt.yaml"))
     parallel = true
 }
@@ -112,7 +112,7 @@ android {
 
     lint {
         lintConfig = file("$rootDir/android-lint.xml")
-        abortOnError = false
+        abortOnError = true
         sarifReport = true
         checkDependencies = true
     }

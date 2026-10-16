@@ -134,7 +134,9 @@ class PlayerFragment : Fragment(), BackPressInterceptor {
         lifecycleScope.launch {
             val context = requireContext()
             val playOptions = requireArguments().getParcelableCompat<PlayOptions>(Constants.EXTRA_MEDIA_PLAY_OPTIONS)
-            val preferences = requireArguments().getParcelableCompat<PlayerWebPreferences>(Constants.EXTRA_WEB_PREFERENCES)
+            val preferences = requireArguments().getParcelableCompat<PlayerWebPreferences>(
+                Constants.EXTRA_WEB_PREFERENCES
+            )
             if (playOptions == null) {
                 context.toast(R.string.player_error_invalid_play_options)
                 return@launch

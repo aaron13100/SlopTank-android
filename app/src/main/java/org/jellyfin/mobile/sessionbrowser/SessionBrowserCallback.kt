@@ -375,8 +375,11 @@ class SessionBrowserCallback(
                     val search = firstItem.requestMetadata.searchQuery
                     Timber.d("Search requested $search")
 
-                    val route = if (search.isNullOrEmpty()) LibraryRoute.Suggested
-                    else LibraryRoute.Search(search)
+                    val route = if (search.isNullOrEmpty()) {
+                        LibraryRoute.Suggested
+                    } else {
+                        LibraryRoute.Search(search)
+                    }
 
                     @Suppress("UNCHECKED_CAST")
                     expandedItems = (route.page as? LibraryPage<LibraryRoute>)

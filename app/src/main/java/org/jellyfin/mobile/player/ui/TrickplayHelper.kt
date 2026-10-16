@@ -149,7 +149,7 @@ class TrickplayHelper(
 
         // Run immediately if next dispatch time has passed, otherwise schedule for the remaining time
         handler.postAtTime(
-            runnable, 
+            runnable,
             maxOf(SystemClock.uptimeMillis(), nextDispatchAt),
         )
     }

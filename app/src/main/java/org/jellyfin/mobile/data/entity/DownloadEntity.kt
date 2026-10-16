@@ -59,7 +59,10 @@ data class DownloadEntity(
         val extraInfo = when (item.type) {
             BaseItemKind.TV_CHANNEL if !item.channelNumber.isNullOrEmpty() -> item.channelNumber
             BaseItemKind.EPISODE if item.parentIndexNumber == 0 -> context.getString(R.string.special_episode)
-            in arrayOf(BaseItemKind.EPISODE, BaseItemKind.RECORDING) if item.indexNumber != null && item.parentIndexNumber != null ->
+            in arrayOf(
+                BaseItemKind.EPISODE,
+                BaseItemKind.RECORDING
+            ) if item.indexNumber != null && item.parentIndexNumber != null ->
                 "S${item.parentIndexNumber}:E${item.indexNumber}${item.indexNumberEnd?.let { n -> "-$n" }.orEmpty()}"
 
             else -> ""
