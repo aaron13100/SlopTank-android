@@ -217,6 +217,31 @@ tasks {
         }
     }
 
+    // The live server check runs only in its own task, never in the default unit test run.
+    val liveTests = "org/jellyfin/mobile/live/**"
+    withType<Test>().configureEach {
+        if (name != "liveServerTest") exclude(liveTests)
+    }
+
+    register<Test>("liveServerTest") {
+        description = "Runs the live server check (LiveServerFlowTest); fails unless C203_LIVE_SERVER and its " +
+            "C203_LIVE_USER, C203_LIVE_PASSWORD and C203_LIVE_ITEM are set."
+        group = "verification"
+        // Same compiled tests and classpath as the default run; AGP creates that task after evaluation.
+        val unitTest = provider { named<Test>("testLibreDebugUnitTest").get() }
+        testClassesDirs = files(unitTest.map { it.testClassesDirs })
+        classpath = files(unitTest.map { it.classpath })
+        dependsOn(unitTest.map { it.taskDependencies })
+        useJUnitPlatform()
+        include(liveTests)
+        outputs.upToDateWhen { false }
+        val required = listOf("C203_LIVE_SERVER", "C203_LIVE_USER", "C203_LIVE_PASSWORD", "C203_LIVE_ITEM")
+        doFirst {
+            val missing = required.filter { System.getenv(it).isNullOrBlank() }
+            if (missing.isNotEmpty()) throw GradleException("liveServerTest needs ${missing.joinToString()}")
+        }
+    }
+
     register("versionTxt") {
         doLast {
             val path = layout.buildDirectory.file("version.txt").get().asFile

@@ -20,19 +20,18 @@ import org.jellyfin.mobile.downloads.progress.BaselineResult
 import org.jellyfin.mobile.downloads.progress.FrozenOperation
 import org.jellyfin.mobile.downloads.progress.HttpProgressApi
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import java.io.File
 import java.util.UUID
 
 /**
  * Opt-in end-to-end check of the app's download and progress code against a real SlopTank server built from
- * the c203-progress-receipts branch. Runs only when C203_LIVE_SERVER is set (with C203_LIVE_USER,
- * C203_LIVE_PASSWORD and C203_LIVE_ITEM); it is not part of the default unit test run.
+ * the c203-progress-receipts branch. It runs only in its own Gradle task, `./gradlew :app:liveServerTest`, which
+ * fails unless C203_LIVE_SERVER, C203_LIVE_USER, C203_LIVE_PASSWORD and C203_LIVE_ITEM are set; the default
+ * unit test run excludes it.
  */
-@EnabledIfEnvironmentVariable(named = "C203_LIVE_SERVER", matches = ".+")
 class LiveServerFlowTest {
-    private val baseUrl = System.getenv("C203_LIVE_SERVER").orEmpty().trimEnd('/')
-    private val itemId = UUID.fromString(System.getenv("C203_LIVE_ITEM").orEmpty())
+    private val baseUrl = requireNotNull(System.getenv("C203_LIVE_SERVER")).trimEnd('/')
+    private val itemId = UUID.fromString(requireNotNull(System.getenv("C203_LIVE_ITEM")))
     private val deviceId = "c203-live-" + UUID.randomUUID().toString().take(8)
     private val client = OkHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
